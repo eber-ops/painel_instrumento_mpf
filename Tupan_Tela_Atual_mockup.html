@@ -1,0 +1,905 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta charset="utf-8">
+<title>Tupan Tela Atual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: réplica das telas atuais do Tupan na CR1077 (800x480): Início, Diag. Sistema, Diag. Motor, Configurações e Data/Hora. Só JetBrains Mono (fonte padrão do projeto) e formas que o CODESYS desenha. */
+:root{
+  --page:#0E0F11; --housing:#17191C; --keys:#2A2E33; --key:#363B41;
+  --bg:#000000; --fg:#FFFFFF; --off:#EBE2DD; --muted:#8C8C8C; --frame:#9A9A9A; --row:#141414;
+  --lime:#8BC63E; --olive:#6E8F22; --purple:#6B25CE; --blue:#2D9CDB; --red:#E0262B; --amber:#F2C230;
+  --font:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+body{background:var(--page);color:var(--fg);font-family:var(--font);padding-block:24px;padding-inline:16px}
+.wrap{max-width:1120px;margin:0 auto;display:grid;gap:14px}
+h1{font-size:18px;margin:0}
+.hint{color:#a5a9ae;font-size:13px;margin:0;line-height:1.5;max-width:86ch}
+/* seletor Carrossel / Menu de apps (fora do display, só para apresentar) */
+.modes{display:inline-flex;border:1px solid #33373c;border-radius:6px;overflow:hidden;align-self:flex-start}
+.modes button{background:#1c1e21;color:#a5a9ae;border:0;padding:8px 16px;font:600 13px var(--font);cursor:pointer}
+.modes button.on{background:var(--lime);color:#000}
+.modes button:focus-visible{outline:2px solid var(--lime);outline-offset:-2px}
+/* menu de apps: telas que saem do carrossel abrem por aqui; botão voltar no topo de cada app */
+.apps{position:absolute;top:100px;left:28px;right:24px;bottom:30px;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:12px}
+.app{position:relative;border:2px solid #3a3a3a;border-radius:10px;background:#101010;color:#fff;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font:700 14px var(--font);letter-spacing:.02em}
+.app.sel{border-color:var(--lime);background:#141a0d}
+.app svg{width:44px;height:44px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.app .bd{position:absolute;top:8px;right:8px;font-size:10px;padding:2px 6px;border-radius:3px;background:#2c2c2c;color:#bdbdbd}
+.app .bd.r{background:var(--red);color:#fff}.app .bd.a{background:var(--amber);color:#000}.app .bd.g{background:#1d2a10;color:var(--lime)}
+.back{position:absolute;left:16px;top:62px;height:30px;padding:0 12px;border:2px solid #fff;border-radius:15px;background:#000;color:#fff;font:700 12px var(--font);cursor:pointer;z-index:2}
+.back[hidden]{display:none}
+kbd{background:#1c1e21;border:1px solid #33373c;border-radius:3px;padding:0 4px;font-size:12px}
+#fit{width:100%;overflow:hidden}
+.device{position:relative;width:1100px;height:630px;background:linear-gradient(160deg,#141617,#0a0b0c 55%);border-radius:10px;padding:76px 0 74px 72px;box-sizing:border-box;display:flex;transform-origin:0 0;box-shadow:inset 0 0 0 3px #2a2d30,inset 0 0 0 5px #0d0e0f}
+.screen{filter:brightness(var(--sb,1));width:800px;height:480px;background:var(--bg);outline:5px solid #000;overflow:hidden;display:flex;flex:none;user-select:none;font-variant-numeric:tabular-nums}
+button{font-family:var(--font)}
+button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+/* teclas físicas */
+.strip{display:grid;grid-template-rows:50px 50px 50px 1fr 50px 50px 50px;gap:12px;padding-block:8px;box-sizing:border-box;height:480px}
+/* teclas da CR1077: retangulares cinza com anel redondo retroiluminado (RGB); direcional quadrado com setinhas */
+.col{position:absolute;right:26px;top:14px;bottom:14px;width:150px;background:#26292c;border-radius:4px;display:flex;flex-direction:column;justify-content:center;gap:5px;padding:6px 0;box-sizing:border-box;box-shadow:inset 0 0 0 1px #34383c}
+.fk{height:72px;flex:none;background:linear-gradient(#3c4044,#303337);border:0;border-top:1px solid #4a4f54;border-bottom:1px solid #1a1c1e;border-radius:3px 12px 3px 3px;cursor:pointer;display:grid;place-items:center;transition:background .05s}
+.fk span{width:26px;height:26px;border-radius:50%;box-sizing:border-box;border:3px solid #c9cdd1;opacity:var(--kl,1);transition:opacity .3s}
+.fk.on span{border-color:var(--lime);box-shadow:0 0 10px var(--lime),inset 0 0 6px var(--lime)}
+.fk.alert span{border-color:var(--red);box-shadow:0 0 10px var(--red),inset 0 0 6px var(--red);animation:kb .8s steps(1) infinite}
+@keyframes kb{50%{border-color:#c9cdd1;box-shadow:none}}
+.fk:active{background:linear-gradient(#34383c,#2a2d30)}
+.pad{flex:none;width:104px;height:104px;margin:4px auto;background:linear-gradient(135deg,#3e4246,#2e3134);border-radius:3px;border-top:1px solid #4a4f54;border-bottom:1px solid #1a1c1e;display:grid;grid-template:1fr 1fr 1fr/1fr 1fr 1fr}
+.pad i{pointer-events:none}
+.pad button{background:none;border:0;color:#c9cdd1;cursor:pointer;font-size:9px;padding:0}
+.pad button:active{color:var(--lime)}
+.pad .c{display:grid;place-items:center}
+.pad .c span{display:block;width:26px;height:26px;border-radius:50%;box-sizing:border-box;border:3px solid #c9cdd1}
+.pad .c:active span{border-color:var(--lime)}
+.chev{position:absolute;right:178px;width:44px;height:120px}
+.chev path{fill:#2f3336}
+/* área da tela */
+.main{width:736px;height:480px;position:relative;flex:none;overflow:hidden}
+.strip{width:64px;flex:none}
+.sl{display:grid;place-items:center;color:#fff}
+.sl svg{width:40px;height:40px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.sl.on{color:var(--lime)}
+.sl.alert{color:var(--red);animation:kb2 .8s steps(1) infinite}
+@keyframes kb2{50%{color:#fff}}
+.logo{position:absolute;left:16px;top:12px;height:42px}
+.clock{position:absolute;left:14px;bottom:6px;font-size:11px;color:#bdbdbd;cursor:pointer;white-space:pre}
+.clock[hidden]{display:none}
+.hicons{position:absolute;right:12px;top:12px;display:flex;gap:10px}
+.hicons svg{width:40px;height:40px;display:block}
+.page{position:absolute;inset:0}
+.page[hidden]{display:none}
+.title{position:absolute;top:58px;left:0;right:0;text-align:center;font-size:28px}
+.dots{position:absolute;bottom:7px;left:0;right:0;display:flex;justify-content:center;gap:8px;align-items:center;font-size:11px;color:var(--muted)}
+.dots i{width:8px;height:8px;border-radius:50%;background:#333}.dots i.on{background:var(--lime)}
+/* painel da bomba: sai de trás da última tecla (bomba) */
+.pump{position:absolute;right:0;top:430px;width:118px;height:38px;box-sizing:border-box;background:#0A0A0A;border:2px solid var(--lime);border-right:0;border-radius:10px 0 0 10px;padding:0 12px;
+  transform:translateX(100%);visibility:hidden;transition:transform .3s ease-out,visibility 0s .3s;display:flex;align-items:center}
+.pump.show{transform:translateX(0);visibility:visible;transition:transform .3s ease-out}
+.pump .v{font-size:22px;font-weight:700;line-height:1;white-space:nowrap}
+.pump .v small{font-size:12px;color:var(--lime);font-weight:700;margin-left:5px;letter-spacing:.04em}
+@media (prefers-reduced-motion:reduce){.pump,.pump.show{transition:none}}
+/* molduras no estilo atual */
+fieldset{border:2px solid var(--frame);border-radius:4px;margin:0;padding:8px 12px 10px;min-width:0;box-sizing:border-box}
+legend{font-weight:700;font-size:16px;padding:0 5px}
+.area{position:absolute;top:100px;left:16px;right:12px;bottom:26px;display:grid;gap:14px}
+.ok{color:var(--lime)}.bad{color:var(--red)}
+.ico svg{width:18px;height:18px;display:block}
+/* diag sistema */
+/* igual à Visu_SystemDiagScreen: cartões Modulo 81/82/83 + Cabine, lista OUTn em caixinhas, quadros de detalhe (GVL_Diag.det*) */
+.dot{display:inline-block;width:12px;height:12px;border-radius:50%;flex:none}
+.mod{display:flex;flex-direction:column;gap:6px;justify-content:center;border:2px solid #3a3a3a;border-radius:6px;background:#121212;padding:6px 14px;cursor:pointer}
+.mod.sel{border-color:var(--lime);background:#141a0d}
+.mod .h{display:flex;justify-content:space-between;align-items:center}
+.mod b{font-size:18px}
+.mod .dot{width:18px;height:18px}
+.mod small{font-size:12.5px;color:#e2e2e2}
+.mod .s{font-size:12px;font-weight:700}
+.outs{display:grid;grid-auto-flow:column;grid-template-rows:repeat(8,20px);grid-template-columns:1fr 1fr;column-gap:18px;row-gap:2px;align-content:start}
+.outs div{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:12px;border:1px solid #3a3a3a;background:#0c0c0c;padding:0 6px;white-space:nowrap;overflow:hidden}
+.outs div.f{border-color:var(--red);background:#1a0909}
+.of{border-left:3px solid var(--red);background:#140909;padding:3px 10px;margin-top:2px}
+.of.ok{border-left-color:var(--lime);background:#0d1209;font-size:12px;color:#bdbdbd}
+.of .h{display:grid;grid-template-columns:230px 1fr auto;gap:8px;align-items:baseline;font-size:12.5px}
+.of .h b{color:#fff}
+.of .tp{font-size:11.5px;font-weight:700;color:var(--red)}
+.of .hr{font-size:11px;color:#8c8c8c}
+.of .d{font-size:11.5px;color:#d6d6d6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.oval{border:2px solid #fff;background:none;color:#fff;border-radius:18px;font-weight:700;font-size:14px;height:34px;padding:0 16px;cursor:pointer}
+.oval.red{border-color:var(--red)}.oval.lime{border-color:var(--lime)}
+/* alertas */
+/* alertas: lista estilo cartão (faixa = nível), ativos em cima e inativos em cinza; aba Histórico (PROG_FaultLog) */
+.al{display:flex;flex-direction:column;min-height:0}
+.tabs{display:inline-flex;border:2px solid #5c5c5c;border-radius:3px;overflow:hidden;vertical-align:middle}
+.tabs button{background:#141414;border:0;color:#9a9a9a;font:700 11px var(--font);letter-spacing:.06em;padding:4px 12px;cursor:pointer}
+.tabs button.on{background:var(--lime);color:#000}
+#codes{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;padding-top:4px}
+.dtc{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;border-left:4px solid var(--red);background:#140909;padding:5px 10px;height:44px;box-sizing:border-box;flex:none}
+.dtc.amb{border-left-color:var(--amber);background:#141106}
+.dtc.old{border-left-color:#4a4a4a;background:#0e0e0e}
+.dtc b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dtc.old b{color:#9a9a9a}
+.dtc small{display:block;font-size:10.5px;color:#a9a9a9;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lv{font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px;background:var(--red);color:#fff;letter-spacing:.04em;white-space:nowrap}
+.lv.amb{background:var(--amber);color:#000}.lv.old{background:#2c2c2c;color:#9a9a9a}
+.det{display:flex;flex-direction:column;gap:2px;padding-top:4px}
+.det .dh{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.det .dh b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.det .dh button{flex:none;height:24px;padding:0 10px;border:2px solid #fff;border-radius:12px;background:#000;color:#fff;font:700 11px var(--font);cursor:pointer}
+.det .dc{font-size:10.5px;color:#a9a9a9;margin-bottom:4px}
+.det .dl{font-size:11px;line-height:16px;height:16px;white-space:pre;color:#e2e2e2}
+.det .dl.hd{color:var(--lime);font-weight:700;letter-spacing:.04em}
+.dtc{cursor:pointer}
+.alft{display:flex;justify-content:space-between;font-size:10.5px;color:#8c8c8c;padding-top:6px}
+.nocom{border:2px solid var(--red);background:#140909;border-radius:4px;padding:14px;display:flex;gap:12px;align-items:center}
+.nocom b{display:block;color:var(--red);font-size:14px}.nocom small{display:block;font-size:11.5px;color:#d6d6d6;margin-top:3px}
+.hrow{display:grid;grid-template-columns:84px minmax(0,1fr) auto 92px;gap:8px;align-items:center;font-size:11.5px;height:28px;border-bottom:1px solid #222;flex:none}
+.hrow .t{color:#a9a9a9}.hrow .d{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hrow .st{font-size:10px;font-weight:700;text-align:right}
+.lamps{display:flex;flex-direction:column;justify-content:space-around;height:100%}
+.lamp{display:flex;align-items:center;gap:10px;font-size:11.5px;font-weight:700;opacity:.18}
+.lamp.on{opacity:1}.lamp small{display:block;font-size:10px;font-weight:400;color:#a9a9a9}
+.lamp svg{width:34px;height:34px;flex:none}
+#clr:disabled{opacity:.3;cursor:default}
+/* dados do motor */
+.grp legend{display:flex;align-items:center;gap:8px;font-size:14px;white-space:nowrap}
+.grp legend small{font-size:10px;font-weight:700;color:#9a9a9a;border:1px solid #555;border-radius:3px;padding:1px 4px}
+.grp .r{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:3px 2px;border-bottom:1px solid #222;font-size:12px;white-space:nowrap}
+.grp .r:last-child{border-bottom:0}
+.grp .r b{font-size:15px}
+.grp .r b small{font-size:11px;color:#a9a9a9;font-weight:400;margin-left:3px}
+/* avisos tipo painel de carro: ícones entre os mostradores + mensagem central */
+
+.msg{position:absolute;left:216px;top:380px;width:304px;height:62px;box-sizing:border-box;background:#0d0d0d;border:2px solid var(--amber);border-radius:12px;
+  display:flex;align-items:center;gap:10px;padding:0 12px;opacity:0;transform:translateY(8px);transition:opacity .25s,transform .25s;pointer-events:none}
+.msg.show{opacity:1;transform:none;pointer-events:auto}
+.msg.red{border-color:var(--red)}
+.msg svg{width:34px;height:34px;flex:none}
+.msg span{min-width:0;padding-right:22px}
+.msg b{display:block;font-size:12px;white-space:nowrap}
+.msg small{display:block;font-size:10.5px;line-height:1.3;color:#bdbdbd;margin-top:2px}
+.msg i{position:absolute;right:9px;top:6px;font-style:normal;font-size:10px;color:#8c8c8c}
+@media (prefers-reduced-motion:reduce){.msg{transition:none}}
+.sim{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px;color:#a5a9ae}
+.sim button{background:#1c1e21;border:1px solid #33373c;color:#ddd;border-radius:14px;padding:5px 12px;cursor:pointer;font-size:12px}
+.sim button.on{border-color:var(--amber);color:var(--amber)}
+.simp{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;background:#141618;border:1px solid #26292d;border-radius:12px;padding:14px}
+.simp h2{grid-column:1/-1;margin:0;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:#a5a9ae}
+.sg{display:flex;flex-direction:column;gap:8px;min-width:0}
+.sg b{font-size:12px;color:#8C8C8C;letter-spacing:.05em;text-transform:uppercase}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{min-width:42px;background:#1c1e21;border:1px solid #33373c;color:#ddd;border-radius:8px;padding:7px 12px;cursor:pointer;font-size:14px;font-weight:700}
+.seg button.on{background:var(--lime);border-color:var(--lime);color:#000}
+.seg button.warn.on{background:var(--amber);border-color:var(--amber)}
+.seg button.red.on{background:var(--red);border-color:var(--red);color:#fff}
+.seg button .ri{width:30px;height:18px;fill:currentColor;vertical-align:-4px;margin-right:5px}
+.rg{display:grid;grid-template-columns:96px 1fr 58px;align-items:center;gap:8px;font-size:13px;color:#cfcfcf}
+.rg input{width:100%;accent-color:var(--lime)}
+.rg output{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+/* diag motor: destaques + grupos */
+.big4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.kpi{border:2px solid #3a3a3a;border-radius:8px;padding:8px 12px;display:flex;flex-direction:column;gap:4px}
+.kpi.big b{font-size:38px}.kpi.big{justify-content:center;gap:8px;padding:12px 16px}.kpi.big em{font-style:normal;font-size:11px;color:#8c8c8c}
+.tripft{font-size:10.5px;color:#8c8c8c}
+.kpi span{font-size:11px;font-weight:700;color:#bdbdbd;letter-spacing:.03em}
+.kpi b{font-size:28px;line-height:1}
+.kpi b small{font-size:13px;color:#a9a9a9;font-weight:400;margin-left:4px}
+.kpi .rng{height:4px;background:#222;border-radius:2px;overflow:hidden}.kpi .rng i{display:block;height:100%;background:var(--lime)}
+.kpi.warn{border-color:var(--amber)}.kpi.warn .rng i{background:var(--amber)}
+/* config: visual de equipamento (blocos retos, bordas grossas, display escuro com número verde) */
+.cf legend{text-transform:uppercase;letter-spacing:.08em;font-size:14px}
+.crow2{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid #2a2a2a}
+.crow2:last-child{border-bottom:0}
+.l2{font-size:11.5px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:#e2e2e2}
+.l2 small{display:block;font-size:10.5px;font-weight:400;letter-spacing:0;text-transform:none;color:#8c8c8c;margin-top:2px}
+.stp{display:grid;grid-template-columns:50px 94px 50px;height:36px;border:2px solid #5c5c5c;border-radius:3px;overflow:hidden;flex:none}
+.stp button{background:#1e1e1e;border:0;color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:var(--font)}
+.stp button:active{background:var(--lime);color:#000}
+.stp button:disabled{color:#555;cursor:default}
+.brs{display:flex;align-items:center;gap:10px;flex:none}
+.brs input{width:150px;height:36px;margin:0;accent-color:var(--lime);cursor:pointer}
+.brs input:disabled{opacity:.45;cursor:default}
+.brs b{width:44px;text-align:right;color:var(--lime);font-size:16px}
+.stp b{background:#040404;border-inline:2px solid #5c5c5c;display:flex;align-items:baseline;justify-content:center;gap:3px;padding-top:6px;color:var(--lime);font-size:18px}
+.stp b small{font-size:10px;color:#8c8c8c}
+.sw2{display:grid;grid-template-columns:1fr 1fr;width:124px;height:34px;border:2px solid #5c5c5c;border-radius:3px;overflow:hidden;cursor:pointer;background:#141414;padding:0;flex:none;font-family:var(--font)}
+.sw2 span{display:grid;place-items:center;font-size:12px;font-weight:700;letter-spacing:.08em;color:#5f5f5f}
+.sw2 span.a0{background:#3c3c3c;color:#fff}.sw2 span.a1{background:var(--lime);color:#000}
+.lcd{background:#040404;border:2px solid #5c5c5c;border-radius:3px;padding:3px 10px;font-size:20px;font-weight:700}
+.lcd small{font-size:11px;color:#8c8c8c;margin-left:4px}
+.sq{height:34px;padding:0 16px;border:2px solid var(--lime);border-radius:3px;background:#0f1409;color:#fff;font-weight:700;font-size:12px;letter-spacing:.08em;cursor:pointer;font-family:var(--font)}
+.sq.full{width:100%;height:40px;display:flex;align-items:center;justify-content:center;gap:10px}
+.sq svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.brand2{display:flex;align-items:center;gap:10px;font-size:10px;color:#bdbdbd;line-height:1.35;padding:5px 0}
+/* manual */
+.man{position:absolute;top:100px;left:16px;right:12px;bottom:28px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr);gap:10px}
+.mcard{border:2px solid #3a3a3a;border-radius:8px;display:flex;gap:12px;align-items:center;padding:8px 12px;min-width:0}
+.mcard .pic{width:64px;height:64px;flex:none;border-radius:8px;background:#151515;display:grid;place-items:center;color:var(--off)}
+.mcard .pic svg{width:44px;height:44px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.mcard b{font-size:14px;display:block}
+.mcard p{margin:3px 0 0;font-size:12px;color:#c9c9c9;line-height:1.35}
+.manbar{position:absolute;bottom:4px;left:16px;right:12px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#9a9a9a}
+/* config */
+.cfg{display:flex;flex-direction:column;gap:5px;font-size:14px;font-weight:700}
+.spr{display:flex;align-items:center;gap:12px;margin:2px 0 6px 40px}
+.spr b{color:var(--lime);font-size:18px;min-width:56px;text-align:center}
+.oval.w{width:112px;padding:0}
+.info{font-size:12px;font-weight:400;color:#ddd;line-height:1.45}
+/* movimento de barras: desenho limpo, sem movimento; verde = sobe/abre, vermelho = desce/fecha */
+/* barras: linha central = a barra; acima sobe/abre (verde), abaixo desce/fecha (vermelho); botões do centro movem os dois lados */
+.bars{position:absolute;inset:0}
+.bars svg.ln{position:absolute;inset:0;width:736px;height:480px;pointer-events:none}
+.arw{position:absolute;width:76px;height:48px;box-sizing:border-box;border:2px solid;border-radius:8px;background:#0a0a0a;cursor:pointer;touch-action:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:0;font-size:10px;font-weight:700;letter-spacing:.04em}
+.arw.up{border-color:var(--lime);color:var(--lime)}.arw.dn{border-color:var(--red);color:var(--red)}
+.arw.both{border-style:double;border-width:4px}
+.arw svg{width:22px;height:22px;fill:currentColor;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round}
+.arw.up.held{background:var(--lime);color:#000}.arw.dn.held{background:var(--red);color:#fff}
+.bars .reg{position:absolute;left:52px;right:52px;top:346px;height:94px;margin:0;padding:0;border:2px solid var(--frame);border-radius:4px}
+.bars .reg legend{margin-left:10px;font-size:14px;text-transform:uppercase;letter-spacing:.08em}
+.bars .reg span{position:absolute;top:0;width:200px;text-align:center;font-size:11px;font-weight:700;color:#bdbdbd;letter-spacing:.06em}
+.bars .reg span:nth-of-type(1){left:4px}.bars .reg span:nth-of-type(2){left:214px}.bars .reg span:nth-of-type(3){left:424px}
+.bars .nm{position:absolute;width:92px;text-align:center;font-size:10px;font-weight:700;color:#9a9a9a;letter-spacing:.05em}
+/* data e hora */
+.spins{display:flex;justify-content:center;gap:12px;align-items:flex-end}
+.spin{display:flex;flex-direction:column;align-items:center;gap:6px;border:2px solid transparent;border-radius:8px;padding:6px 4px;cursor:pointer}
+.spin.sel{border-color:var(--lime)}
+.spin small{font-size:11px;color:#bdbdbd;font-weight:700;letter-spacing:.05em}
+.spin b{font-size:30px;min-width:64px;text-align:center}
+.spin button{width:64px;height:34px;border:2px solid #fff;border-radius:16px;background:none;color:#fff;font-size:16px;cursor:pointer}
+.sep{font-size:30px;padding-bottom:50px;color:#777}
+</style>
+
+<div class="wrap">
+  <h1>Tupan · tela atual com melhorias</h1>
+  <div class="modes" role="group" aria-label="Navegação"><button data-mode="car">Carrossel</button><button data-mode="apps">Menu de apps</button></div>
+  <p class="hint" id="hint">Telas no ◀ ▶ do direcional: Início → Movimento de Barras → Jornada → Diagnóstico Sistema → Alertas → Diagnóstico Motor → Configurações (Data e Hora e Manual abrem por lá). A última tecla (bomba) liga a bomba e o quadro do RPM sai ao lado dela. Toque no relógio ou em "Ajustar" nas Configurações para acertar data e hora. Teclado: <kbd>1</kbd>–<kbd>6</kbd> = teclas, setas = direcional, <kbd>Enter</kbd> = OK. Valores simulados.</p>
+  <div id="fit"><div class="device" id="dev">
+    <div class="screen">
+      <div class="main">
+        <img class="logo" src="data:image/png;base64,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" alt="Pro Solus">
+        <div class="clock" id="clock" data-go="4" title="Ajustar data e hora"></div>
+        <div class="hicons" id="hicons"></div>
+
+        <div class="page" id="p0"><svg id="home" viewBox="0 0 736 480" width="736" height="480"></svg></div>
+
+        <div class="page" id="p5" hidden>
+                    <div class="bars" id="bars"></div>
+        </div>
+
+        <div class="page" id="p1" hidden>
+          <div class="title">Diagnóstico Sistema</div>
+          <div class="area" style="grid-template-columns:200px 1fr">
+            <div id="mods" style="display:grid;grid-template-rows:repeat(4,1fr);gap:8px"></div>
+            <fieldset style="display:flex;flex-direction:column;gap:4px;padding-bottom:6px"><legend id="mtitle"></legend><div class="outs" id="outs"></div><div id="ofail"></div></fieldset>
+          </div>
+        </div>
+
+        <div class="page" id="p2" hidden>
+          <div class="title">Alertas</div>
+          <div class="area" style="grid-template-columns:1fr 168px">
+            <fieldset class="al"><legend><span class="tabs" id="atabs"></span></legend><div id="codes"></div><div class="alft" id="alft"></div></fieldset>
+            <div style="display:grid;grid-template-rows:1fr auto;gap:10px;min-height:0">
+              <fieldset><legend>Lâmpadas</legend><div class="lamps" id="lamps"></div></fieldset>
+              <button class="oval red" style="height:40px" data-clr="1" id="clr">Limpar inativos</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="page" id="p6" hidden>
+          <div class="title">Diagnóstico Motor</div>
+          <div class="area" id="data" style="grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr auto;gap:6px 14px"></div>
+        </div>
+
+        <div class="page" id="p3" hidden>
+          <div class="title">Configurações</div>
+          <div class="area" style="grid-template-columns:1.05fr 1fr">
+            <fieldset class="cf"><legend>Operação</legend><div id="op"></div></fieldset>
+            <fieldset class="cf" style="display:flex;flex-direction:column"><legend>Sistema</legend><div id="sys" style="flex:1;display:flex;flex-direction:column"></div></fieldset>
+          </div>
+        </div>
+
+        <div class="page" id="p7" hidden>
+          <div class="title">Manual de uso</div>
+          <div class="man" id="man"></div>
+          <div class="manbar"><button class="oval s" style="width:86px" data-back="1">Voltar</button><span id="manpg"></span><span>▲ ▼ / ◀ ▶ troca a página</span></div>
+        </div>
+
+        <div class="page" id="p8" hidden>
+          <div class="title">Jornada</div>
+          <div class="area" id="trip" style="grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr auto;gap:12px"></div>
+        </div>
+
+        <div class="page" id="p4" hidden>
+          <div class="title">Data e Hora</div>
+          <div class="area" style="grid-template-rows:auto auto auto;align-content:center;justify-items:center;gap:22px">
+            <div id="prev" style="text-align:center"></div>
+            <div class="spins" id="spins"></div>
+            <div style="display:flex;gap:14px"><button class="oval w" data-cancel="1">Cancelar</button><button class="oval lime w" data-save="1">Salvar</button></div>
+          </div>
+        </div>
+
+        <!-- CODESYS: grupo com Absolute movement X = iPumpPanelX (PLC anima 172→0 ao ligar e 0→172 ao desligar; Invisible quando 172) -->
+        <div class="msg" id="msg" data-msgx="1"></div>
+        <div class="pump" id="pump" aria-live="polite" aria-label="RPM da bomba de pulverização"><span class="v"><span id="prpm">0</span><small>RPM</small></span></div>
+        <div class="page" id="p9" hidden>
+          <div class="title">Menu</div>
+          <div class="apps" id="apps"></div>
+        </div>
+        <button class="back" id="back" data-back2="1" hidden>◀ Menu</button>
+        <div class="dots" id="dots"></div>
+      </div>
+      <div class="strip" id="strip"></div>
+    </div>
+    <svg class="chev" style="top:70px" viewBox="0 0 44 120" aria-hidden="true"><path d="M44 0v22L0 44V22Z"/><path d="M44 34v22L0 78V56Z"/><path d="M44 68v22L0 112V90Z"/></svg>
+    <svg class="chev" style="bottom:56px" viewBox="0 0 44 120" aria-hidden="true"><path d="M0 8v22l44 22V30Z"/><path d="M0 42v22l44 22V64Z"/><path d="M0 76v22l44 22V98Z"/></svg>
+    <div class="col">
+      <button class="fk" data-k="0" aria-label="Início"><span></span></button>
+      <button class="fk" data-k="1" aria-label="Pisca-alerta"><span></span></button>
+      <button class="fk" data-k="2" aria-label="Luz de trabalho"><span></span></button>
+      <div class="pad"><i></i><button data-n="u" aria-label="Cima">▲</button><i></i><button data-n="l" aria-label="Tela anterior">◀</button><button class="c" data-n="ok" aria-label="OK"><span></span></button><button data-n="r" aria-label="Próxima tela">▶</button><i></i><button data-n="d" aria-label="Baixo">▼</button><i></i></div>
+      <button class="fk" data-k="3" aria-label="Subir escada"><span></span></button>
+      <button class="fk" data-k="4" aria-label="Descer escada"><span></span></button>
+      <button class="fk" data-k="5" aria-label="Bomba de pulverização"><span></span></button>
+    </div>
+  </div></div>
+  <section class="simp" aria-label="Simulador">
+    <h2>Simulador</h2>
+    <div class="sg"><b>Marcha</b>
+      <div class="seg" id="simDir"><button data-sdir="D">D</button><button data-sdir="N">N</button><button data-sdir="R">R</button></div>
+      <b>Faixa</b>
+      <div class="seg" id="simRange"><button data-srange="1" title="D1 · tartaruga"><svg class="ri" viewBox="0 0 40 24"></svg>1</button><button data-srange="2" title="D2 · pessoa"><svg class="ri" viewBox="0 0 40 24"></svg>2</button><button data-srange="3" title="D3 · lebre"><svg class="ri" viewBox="0 0 40 24"></svg>3</button></div>
+    </div>
+    <div class="sg"><b>Motor</b>
+      <label class="rg">Rotação<input type="range" id="r_rpm" min="0" max="2800" step="10"><output id="o_rpm"></output></label>
+      <label class="rg">Torque<input type="range" id="r_torque" min="0" max="100"><output id="o_torque"></output></label>
+      <label class="rg">Temperatura<input type="range" id="r_cool" min="60" max="120"><output id="o_cool"></output></label>
+      <label class="rg">Combustível<input type="range" id="r_fuel" min="0" max="100"><output id="o_fuel"></output></label>
+      <label class="rg">Bateria<input type="range" id="r_bat" min="10" max="15" step="0.1"><output id="o_bat"></output></label>
+    </div>
+    <div class="sg"><b>Luzes e estado</b>
+      <label class="rg">Luz ambiente<input type="range" id="r_amb" min="0" max="100"><output id="o_amb"></output></label>
+      <div class="seg"><button data-stg="low">Farol baixo</button><button data-stg="high">Farol alto</button></div>
+      <div class="seg"><button data-stg="brake" class="red">Freio de mão</button><button data-stg="stop" class="red">STOP</button></div>
+      <div class="seg"><button data-skey="1" class="warn">Pisca-alerta</button><button data-skey="5">Bomba</button></div>
+    </div>
+    <div class="sg"><b>Alertas do motor</b>
+      <div class="seg"><button data-sim="110" class="red">Temperatura alta</button><button data-sim="97" class="warn">Água no combustível</button><button data-sim="100" class="red">Pressão do óleo baixa</button><button data-stg="mil" class="warn">Lâmpada MIL</button></div>
+      <div class="seg"><button data-sfuel="20" class="warn">Combustível na reserva</button><button data-sfuel="6" class="red">Sem combustível</button><button data-sfuel="80">Tanque cheio</button></div>
+      <b style="margin-top:6px">Falhas de saída (módulos)</b>
+      <div class="seg"><button data-sout="1|12|2" class="red">82 · Luz de re (curto)</button><button data-sout="2|7|1" class="red">83 · Venteio (aberto)</button><button data-sout="2|14|3" class="red">83 · Pont. D sobe (nao responde)</button><button data-sout="2|9|4" class="red">83 · Barra E abre (consumo alto)</button></div>
+      <div class="seg"><button data-soff="0" class="red">81 sem rede</button><button data-soff="1" class="red">82 sem rede</button><button data-soff="2" class="red">83 sem rede</button><button data-sout="3|0|1" class="red">Motor MWM</button><button data-sout="3|3|1" class="red">Saida display 0</button></div>
+      <span style="font-size:12px;color:#8C8C8C">O combustível abaixo de 1/4 liga a reserva; abaixo de 10 % vira alerta grave. Temperatura acima de 105 °C no controle acima também liga o alerta.</span>
+    </div>
+  </section>
+  <p class="hint">No CODESYS: o relógio do topo é um campo de texto com a hora do RTC do display; a tela Data e Hora edita variáveis locais e, ao Salvar, grava no RTC pela função de ajuste de relógio da biblioteca do display (confira o nome na lib da ifm). O quadro da bomba é um grupo com <i>Absolute movement → X</i> animado pelo PLC.</p>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const lim=(v,lo,hi)=>Math.min(hi,Math.max(lo,v));
+const pad2=n=>String(n).padStart(2,'0');
+const IC={ // ícones da faixa lateral iguais aos da visu (brancos e cheios); cores explícitas p/ não herdar o traço do CSS
+  home:'<path fill="currentColor" stroke="none" d="M20 3.5 1.5 19.5H7V36h10V26h6v10h10V19.5h5.5L32 13.9V6h-5v3.6Z"/>',
+  hz:'<path fill="currentColor" stroke="currentColor" stroke-width="4" stroke-linejoin="round" d="M20 4.5 37 34.5H3Z"/><path fill="#000" stroke="none" d="M20 13.5 30 31H10Z"/><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round" d="M20 20 24.6 28H15.4Z"/>',
+  work:'<g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12.5C23 6 31 4 35 8s2 12-4.5 16Z"/><path d="M19 12.5l11.5 11.5"/><path d="M16 17 5 28M19.5 20.5 8.5 31.5M23 24 12 35M12.5 13.5 4 22"/></g>',
+  up:'<path fill="currentColor" stroke="none" d="M10 5 2.5 16H7.5v18h5V16h5Z"/><path fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="butt" d="M23 6v29M34 6v29M23 12.5h11M23 20.5h11M23 28.5h11"/>',
+  down:'<path fill="currentColor" stroke="none" d="M10 35 2.5 24H7.5V6h5v18h5Z"/><path fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="butt" d="M23 6v29M34 6v29M23 12.5h11M23 20.5h11M23 28.5h11"/>',
+  pump:'<g stroke="none"><circle cx="10" cy="21" r="7" fill="currentColor"/><rect x="7.5" y="9" width="5" height="7" fill="currentColor"/><rect x="1" y="19" width="3" height="4" fill="currentColor"/><circle cx="10" cy="21" r="2.4" fill="#000"/><rect x="16" y="19" width="4" height="4" fill="currentColor"/><rect x="20" y="12" width="18" height="17" rx="3" fill="currentColor"/><path d="M24 14.5v12M28 14.5v12M32 14.5v12" stroke="#000" stroke-width="1.8"/><rect x="19" y="29" width="20" height="3" rx="1" fill="currentColor"/></g>'};
+const svg=p=>`<svg viewBox="0 0 40 40">${p}</svg>`;
+const ALERT='<svg viewBox="0 0 40 40"><path d="M20 3 38 36H2Z" fill="#E0262B"/><path d="M20 14v11" stroke="#fff" stroke-width="4" stroke-linecap="round"/><circle cx="20" cy="31" r="2.3" fill="#fff"/></svg>';
+const MOON='<svg viewBox="0 0 40 40"><path d="M25 7a14 14 0 1 0 9 22A11 11 0 0 1 25 7Z" fill="#fff"/><path d="M30 9l1 2.2 2.2 1-2.2 1L30 15.4l-1-2.2-2.2-1 2.2-1Z" fill="#fff"/></svg>'; // modo noturno ligado (no CODESYS: imagem com Invisible = NOT xNight)
+const BRAKE='<svg viewBox="0 0 40 40" fill="none" stroke="#E0262B" stroke-width="3"><circle cx="20" cy="20" r="12" fill="#E0262B"/><path d="M20 13v9" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/><circle cx="20" cy="27" r="2" fill="#fff" stroke="none"/><path d="M6 10a17 17 0 0 0 0 20M34 10a17 17 0 0 1 0 20" stroke-linecap="round"/></svg>';
+const OK='<svg viewBox="0 0 20 20" fill="none" stroke="#8BC63E" stroke-width="1.8"><circle cx="10" cy="10" r="8"/><path d="M6 10l3 3 5-6"/></svg>';
+const BAD='<svg viewBox="0 0 20 20" fill="none" stroke="#E0262B" stroke-width="1.8"><circle cx="10" cy="10" r="8"/><path d="M10 5.5v6"/><circle cx="10" cy="14.3" r=".9" fill="#E0262B"/></svg>';
+
+const S={atab:0,apg:0,mil:false,occ:{97:2},old:[{spn:97,fmi:31,d:'Água no combustível'}],lastC:{},prev:new Set(),
+  hist:[{t:'03/11 16:42',d:'Água no combustível',lv:1,end:'16:58'},{t:'03/11 09:12',d:'Pressão do óleo do motor',lv:2,end:'09:13'},{t:'02/11 18:05',d:'Nível de combustível · reserva',lv:1,end:'18:40'},{t:'02/11 07:31',d:'Água no combustível',lv:1,end:'07:50'},{t:'31/10 15:20',d:'Temperatura do líquido de arrefecimento',lv:2,end:'15:34'}],
+  trip:{h0:1228.3,f0:18254,pump:3.4,since:'04/11 06:12'},tripArm:false,
+  page:0,mod:2,pump:false,pumpRpm:0,hazard:false,ladder:'up',work:false,
+  rpm:1800,torque:42,cool:88,fuel:61,bat:13.8,hours:1234.5,dir:'D',range:2,brake:true,T:{rpm:1800,torque:42,cool:88,fuel:61,bat:13.8,amb:70},low:true,high:false,stop:false,
+  spA:1800,spB:2100,rpmMan:1500,potRe:false,prot:true,mode:'car',app:0,manBack:3,bright:80,autoBr:false,night:false,wake:0,clkOff:0,edit:null,field:0,
+  ALL:{110:{spn:110,fmi:16,d:'Temperatura do líquido de arrefecimento'},97:{spn:97,fmi:31,d:'Água no combustível'},100:{spn:100,fmi:1,d:'Pressão do óleo do motor'}},
+  dm1:[{spn:110,fmi:16,d:'Temperatura do líquido de arrefecimento'}],
+  e:{load:38,cons:18342,rate:14.25,oilP:410,rail:96.4,pAtm:93.12,ip:182,it:46,air:178}};
+const FMI={31:'Condição presente',0:'Acima do normal · nível mais severo',1:'Abaixo do normal · nível mais severo',2:'Dado errático ou incorreto',3:'Tensão alta ou curto p/ positivo',4:'Tensão baixa ou curto p/ negativo',16:'Acima do normal · nível moderado',18:'Abaixo do normal · nível moderado'};
+const VER='V3.1.0';
+// GVL_Diag.outState 1..4 → detType/detHelp; detHelp encurtado p/ caber em 1 linha (atualizar o PROG_Diagnostic igual)
+const OUT_FAULT={
+  1:['CIRCUITO ABERTO','Saida ligada sem corrente. Verifique conector, fio e bobina.'],
+  2:['CURTO-CIRCUITO','Corrente acima do limite, saida desligada. Verifique o chicote.'],
+  3:['NAO RESPONDE','Sem corrente no comando. Verifique alimentacao e bobina.'],
+  4:['CONSUMO ALTO','Corrente acima do normal. Verifique bobina e valvula travada.']};
+const O=(...a)=>a.map(([i,t])=>['OUT'+i,t]);
+// f: {linha: [outState, hora]}; on=false → SEM REDE
+const MODS=[
+  {n:'Modulo 81',loc:'Luzes',on:true,f:{},it:O([0,'Farol baixo'],[1,'Seta direita'],[3,'Buzina'],[4,'Farol alto'],[5,'Seta esquerda'])},
+  {n:'Modulo 82',loc:'Central',on:true,f:{12:[2,'13:58']},it:O([0,'Tracao re'],[1,'Escada sobe'],[2,'Tracao frente'],[3,'Escada desce'],[5,'Seta esquerda'],[7,'Seta direita'],[8,'Freio'],[10,'Luz trab. aux'],[11,'Bomba pulv.'],[12,'Arranque T50'],[13,'Luz de freio'],[14,'Luz posicao'],[15,'Luz de re'])},
+  {n:'Modulo 83',loc:'Hidraulica',on:true,f:{7:[1,'14:21'],14:[3,'14:40']},it:O([0,'Pont. E desce'],[1,'Barra E fecha'],[2,'Geom. E desce'],[3,'Quadro desce'],[4,'Geom. D desce'],[5,'Barra D fecha'],[6,'Pont. D desce'],[7,'Venteio'],[8,'Pont. E sobe'],[9,'Barra E abre'],[10,'Geom. E sobe'],[11,'Quadro sobe'],[12,'Geom. D sobe'],[13,'Barra D abre'],[14,'Pont. D sobe'],[15,'Luz trabalho'])},
+  {n:'Cabine',loc:'Painel',on:true,cab:true,f:{},it:[['J1939','Motor MWM'],['J1939','Joystick'],['J1939','Teclado'],['OUT0','Saida display 0'],['OUT1','Saida display 1']]}];
+const nFail=m=>Object.keys(m.f).length, modBad=m=>!m.on||nFail(m)>0;
+const now=()=>new Date(Date.now()+S.clkOff);
+// PROG_LabelRTC roda em todas as telas: data, hora e versão no canto inferior esquerdo
+function clock(){const d=now();$('clock').textContent=`${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}  |  ${VER}`;$('clock').hidden=S.page===4||S.page===7}
+// avisos do motor (tipo painel de carro): título, ação, gravidade e ícone
+const RANGE_IC={ // silhuetas cheias (viewBox 40x24): D1 tartaruga, D2 pessoa, D3 lebre
+  1:'<path d="M6 15C6 8 12 3.5 19 3.5S31.5 8 32 15Z"/><path d="M3 15h31.5v2.4H3Z"/><path d="M7 17h4.5v3.6H7ZM25.5 17H30v3.6h-4.5Z"/><path d="M31 13.5c.6-2.8 3.2-4.2 5.6-3.4 2 .7 2.2 2.8.3 3.8L32 16Z"/><path d="M3.5 15 0 16.2l3.5 1.2Z"/>',
+  2:'<circle cx="21" cy="3.6" r="3"/><path d="M19.2 7.5h4l3.4 5.2 4 1.4-.8 2.2-5-1.8-1.5-2.2-.6 4 3.8 4.6-1.9 1.6-4.4-4.8-2.6 4.8-2.4-1 3-6.2.6-3.6-2.2 1.6-1 3.2-2.3-.6 1.4-4.6Z"/>',
+  3:'<ellipse cx="19" cy="13" rx="10" ry="4.8"/><ellipse cx="30.8" cy="9.2" rx="4.4" ry="3.2" transform="rotate(-15 30.8 9.2)"/><path d="M28.4 7.4 23.6 .9l1.5-.6 5.3 5.8ZM30.6 6.6 28.8.2h1.6l2.2 6Z"/><circle cx="8.6" cy="11" r="2.1"/><path d="M12.5 14.5 3.4 20.4l1.6 1.6 9.6-5ZM1.6 20.2h5.2v2.2H1.6Z"/><path d="M25.5 15 33.4 19.6l-.9 1.6-8.6-3.6ZM23.4 16.2 27.6 22.4l-1.6.8-4.6-5.6Z"/><circle cx="32.6" cy="8.4" r=".7" fill="#000"/>'};
+const DIM='#2a2d30'; // cor do aviso apagado (igual ao farol alto desligado)
+const OIL=c=>`<g fill="none" stroke="${c}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"><path d="M2 15h6v6H2z"/><path d="M8 17h4l2-3h9l3 3 11-5v3L27 26H11l-1-3H8"/><path d="M17 14v-3M13.5 11h7"/></g><path d="M37 21c-1.6 2.6-1.6 4.4 0 5 1.6-.6 1.6-2.4 0-5Z" fill="${c}"/>`;
+const WARN={
+  96:['COMBUSTÍVEL NA RESERVA','Menos de 1/4 do tanque. Abasteça em breve','amb','<g fill="#F2C230"><rect x="6" y="6" width="17" height="27" rx="3"/><rect x="3" y="31" width="23" height="4" rx="1"/></g><rect x="9.5" y="10" width="10" height="7" fill="#000"/><path d="M23 13h4l4 4v13a2.5 2.5 0 0 1-5 0v-6h-3" fill="none" stroke="#F2C230" stroke-width="2.6" stroke-linejoin="round"/>'],
+  100:['PRESSÃO DO ÓLEO BAIXA','Pare o motor com segurança','red',OIL('#E0262B')],
+  110:['TEMPERATURA DO MOTOR ALTA','Reduza a carga e verifique o radiador','red','<path d="M20 4v18" stroke="#E0262B" stroke-width="3"/><path d="M20 8h5M20 13h5M20 18h5" stroke="#E0262B" stroke-width="2"/><circle cx="20" cy="27" r="5" fill="#E0262B"/><path d="M4 32q4-3 8 0t8 0 8 0 8 0" stroke="#E0262B" stroke-width="2.5" fill="none"/>'],
+  97:['ÁGUA NO COMBUSTÍVEL','Drene o filtro separador de água','amb','<g fill="#F2C230"><rect x="4" y="8" width="16" height="24" rx="3"/><rect x="2" y="30" width="20" height="4"/></g><rect x="7" y="12" width="10" height="6"/><path d="M20 14h4v10a2 2 0 0 0 4 0V13l-4-4" fill="none" stroke="#F2C230" stroke-width="2.5"/><g fill="#999"><circle cx="31" cy="25" r="2"/><circle cx="36" cy="25" r="2"/><circle cx="33.5" cy="31" r="2"/></g>']};
+const TRI=c=>`<path d="M20 3 38 36H2Z" fill="${c}"/><path d="M20 14v11" stroke="${c==='#E0262B'?'#fff':'#000'}" stroke-width="4" stroke-linecap="round"/><circle cx="20" cy="31" r="2.3" fill="${c==='#E0262B'?'#fff':'#000'}"/>`;
+const sevRed=()=>S.dm1.some(c=>WARN[c.spn]&&WARN[c.spn][2]==='red');
+const ATT0='<path d="M20 4 37 35H3Z" fill="none" stroke="#F2C230" stroke-width="2.8"/><path d="M20 15v10" stroke="#F2C230" stroke-width="3.5" stroke-linecap="round"/><circle cx="20" cy="30" r="2" fill="#F2C230"/>';
+let msgT=null;
+function showMsg(spn){S.msgSpn=spn;clearTimeout(msgT);drawMsg();msgT=setTimeout(()=>{S.msgSpn=null;drawMsg()},6000)}
+function drawMsg(){
+  const el=$('msg'), w=WARN[S.msgSpn], on=S.page===0&&w&&S.dm1.some(c=>c.spn===S.msgSpn);
+  el.className='msg'+(on?' show':'')+(w&&w[2]==='red'?' red':'');
+  if(!w) return;
+  const c=S.dm1.find(x=>x.spn===S.msgSpn)||{fmi:''}, i=S.dm1.findIndex(x=>x.spn===S.msgSpn);
+  el.innerHTML=`<svg viewBox="0 0 40 40">${w[3]}</svg><span><b>${w[0]}</b><small>${w[1]}</small></span><i>${i+1}/${S.dm1.length}</i>`;
+}
+
+// ---------- INÍCIO (igual à tela atual) ----------
+const P=(cx,cy,r,a)=>[cx+r*Math.cos(a*Math.PI/180),cy+r*Math.sin(a*Math.PI/180)];
+const arc=(cx,cy,r,a0,a1)=>{const[x0,y0]=P(cx,cy,r,a0),[x1,y1]=P(cx,cy,r,a1);return `M${x0.toFixed(1)} ${y0.toFixed(1)}A${r} ${r} 0 ${a1-a0>180?1:0} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`};
+const tick=(cx,cy,r1,r2,a,col,w)=>{const[x1,y1]=P(cx,cy,r1,a),[x2,y2]=P(cx,cy,r2,a);return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="${w}" stroke-linecap="round"/>`};
+const T=(x,y,s,txt,o='')=>`<text x="${x}" y="${y}" font-size="${s}" fill="#fff" text-anchor="middle" font-family="JetBrains Mono, monospace" ${o}>${txt}</text>`;
+function drawHome(){
+  // grade da tela inicial: mostradores centrados em y=258, com espaço livre entre eles para os avisos
+  let g='';
+  const ch=S.hazard?'class="blink"':'';
+  g+=`<text x="312" y="92" font-size="30" font-weight="700" fill="#8BC63E" text-anchor="middle" font-family="JetBrains Mono, monospace" ${ch}>‹‹‹</text><text x="472" y="92" font-size="30" font-weight="700" fill="#8BC63E" text-anchor="middle" font-family="JetBrains Mono, monospace" ${ch}>›››</text>`;
+  g+=`<g data-dir="1" style="cursor:pointer">${['D','N','R'].map((l,k)=>`<text x="${364+k*28}" y="94" font-size="${l===S.dir?32:20}" font-weight="700" fill="${l===S.dir?'#fff':'#4a4a4a'}" text-anchor="middle" font-family="JetBrains Mono, monospace">${l}</text>`).join('')}</g>`;
+  // faróis
+  g+=`<g transform="translate(98 134)" stroke-width="3" stroke-linecap="round"><path d="M14 2a10 10 0 0 0 0 20Z" fill="${S.high?'#2D9CDB':'#1d2f3a'}"/><path d="M18 5h9M18 12h9M18 19h9" stroke="${S.high?'#2D9CDB':'#1d2f3a'}"/></g>`;
+  g+=`<g transform="translate(84 176)" stroke-width="3" stroke-linecap="round"><path d="M14 2a10 10 0 0 0 0 20Z" fill="${S.low?'#8BC63E':'#253015'}"/><path d="M18 6l9 3M18 12l9 3M18 18l9 3" stroke="${S.low?'#8BC63E':'#253015'}"/></g>`;
+  // torque
+  const tc=[214,232],tr=80,t0=45,t1=315;
+  g+=`<path d="${arc(...tc,tr,t0,t1)}" stroke="#d9d9d9" stroke-width="2" fill="none"/>`;
+  for(let a=t0;a<=t1;a+=27) g+=tick(...tc,tr-8,tr-2,a,'#bdbdbd',2);
+  g+=`<path d="${arc(...tc,tr-5,t0,t0+(t1-t0)*S.torque/100)}" stroke="#fff" stroke-width="6" fill="none"/>`;
+  g+=tick(...tc,tr-12,tr+2,t0,'#2D9CDB',5)+tick(...tc,tr-12,tr+2,t1,'#E0262B',5);
+  g+=T(214,232,30,S.torque+'%','font-weight="700"')+T(214,254,14,'TORQUE','font-weight="700"');
+  // rotação
+  const rc=[392,250];
+  g+=`<circle cx="392" cy="250" r="122" fill="none" stroke="#6E8F22" stroke-width="2.5"/>`;
+  for(let i=0;i<9;i++) g+=`<path d="${arc(...rc,95,136.5+i*30,163.5+i*30)}" stroke="#1E1E1E" stroke-width="34" fill="none"/>`;
+  const va=135+270*lim(S.rpm/2800,0,1);
+  g+=`<path d="${arc(...rc,95,135,va)}" stroke="#6E8F22" stroke-width="34" fill="none"/><path d="${arc(...rc,95,va-5,va)}" stroke="#E5A21C" stroke-width="34" fill="none"/>`;
+  g+=`<circle cx="392" cy="250" r="66" fill="#000" stroke="#2a2a2a" stroke-width="3"/>`+T(392,264,44,S.rpm,'font-weight="700"')+T(392,292,14,'rpm','font-weight="700" fill-opacity=".7"');
+  // temperatura (arco de cima) e combustível (arco da direita), mesmo centro, sem sobreposição
+  // temperatura (arco de cima) + combustível (arco da direita): um só mostrador, mesmo centro e raio, como no original
+  const qc=[594,214],qr=80,cols=['#6B25CE','#8E5BE0','#fff','#fff','#E0262B'];
+  cols.forEach((c,i)=>g+=`<path d="${arc(...qc,qr,196+i*21+1,217+i*21-1)}" stroke="${c}" stroke-width="4" fill="none"/>`);
+  [60,75,90,105,120].forEach((v,i)=>{const[x,y]=P(...qc,qr+15,196+i*26.25);g+=`<text x="${x.toFixed(1)}" y="${(y+4).toFixed(1)}" font-size="12" font-weight="700" fill="${v===120?'#E0262B':'#fff'}" text-anchor="middle" font-family="JetBrains Mono, monospace">${v}</text>`});
+  g+=tick(...qc,qr-13,qr+4,196+105*lim((S.cool-60)/60,0,1),'#fff',4);
+  g+=`<g transform="translate(576 160)" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M12 2v16M12 6h5M12 10h5M12 14h5"/><circle cx="12" cy="21" r="3.5" fill="#fff"/><path d="M2 27q3-2 5 0t5 0 5 0 5 0"/></g>`;
+  g+=`<path d="${arc(...qc,qr,312,400)}" stroke="#2D9CDB" stroke-width="4" fill="none"/><path d="${arc(...qc,qr,40,50)}" stroke="#E0262B" stroke-width="4" fill="none"/>`;
+  for(let a=-44;a<=48;a+=23) g+=tick(...qc,qr-10,qr-3,a,'#fff',3);
+  {const[x,y]=P(...qc,qr-20,-40);g+=`<text x="${x.toFixed(1)}" y="${(y+4).toFixed(1)}" font-size="12" font-weight="700" fill="#fff" text-anchor="middle" font-family="JetBrains Mono, monospace">F</text>`;}
+  {const[x,y]=P(...qc,qr-20,46);g+=`<text x="${x.toFixed(1)}" y="${(y+4).toFixed(1)}" font-size="12" font-weight="700" fill="#E0262B" text-anchor="middle" font-family="JetBrains Mono, monospace">E</text>`;}
+  g+=tick(...qc,qr-15,qr+5,50-98*S.fuel/100,'#fff',4);
+  g+=`<g transform="translate(618 205)" fill="#fff"><rect width="13" height="18" rx="2"/><rect x="2.5" y="3" width="8" height="5" fill="#000"/><path d="M13 5h3v9a1.5 1.5 0 0 0 3 0V6l-3-3" fill="none" stroke="#fff" stroke-width="2"/></g>`;
+  // linha de baixo
+  g+=`<circle cx="150" cy="398" r="26" fill="none" stroke="${S.stop?'#E0262B':'#7a1a1c'}" stroke-width="2.5"/><text x="150" y="403" font-size="13" font-weight="700" fill="${S.stop?'#E0262B':'#7a1a1c'}" text-anchor="middle" font-family="JetBrains Mono, monospace">STOP</text>`;
+  g+=`<g transform="translate(222 394)" fill="none" stroke="#8BC63E" stroke-width="2"><path d="M1 1h12M1 15h12M3 1q4 7 0 14M11 1q-4 7 0 14"/></g><text x="242" y="407" font-size="15" font-weight="700" fill="#fff" font-family="JetBrains Mono, monospace">${S.hours.toFixed(1)} h</text>`+T(278,424,10,'HORÍMETRO','font-weight="700"');
+  // consumo instantâneo do motor (J1939 LFE, Fuel Rate em l/h): reage à carga, como na Jacto; a média fica na Jornada
+  g+=`<path transform="translate(344 393)" d="M7 0C4 5 1.5 8 1.5 11.5a5.5 5.5 0 0 0 11 0C12.5 8 10 5 7 0Z" fill="#8BC63E"/><text x="362" y="407" font-size="15" font-weight="700" fill="#fff" font-family="JetBrains Mono, monospace">${S.e.rate.toFixed(1)} l/h</text>`+T(396,424,10,'CONSUMO','font-weight="700"');
+  g+=`<g transform="translate(462 394)" fill="#8BC63E"><rect y="3" width="20" height="12" rx="2"/><rect x="3" width="4" height="3"/><rect x="13" width="4" height="3"/></g><text x="488" y="407" font-size="15" font-weight="700" fill="#fff" font-family="JetBrains Mono, monospace">${S.bat.toFixed(1)}V</text>`+T(500,424,10,'BATERIA','font-weight="700"');
+  // marcha: D1/D2/D3 grande dentro do círculo; símbolo pequeno do lado de fora (à esquerda)
+  g+=`<circle cx="634" cy="398" r="26" fill="none" stroke="#8BC63E" stroke-width="2.5"/>`;
+  g+=`<text x="634" y="407" font-size="${S.dir==='N'?26:22}" font-weight="700" fill="#6B25CE" text-anchor="middle" font-family="JetBrains Mono, monospace">${S.dir==='N'?'N':S.dir+S.range}</text>`;
+  if(S.dir!=='N') g+=`<g transform="translate(562 386)" fill="#EBE2DD">${RANGE_IC[S.range]}</g>`;
+  // avisos do motor: 4 posições fixas nos cantos livres em volta da rotação (só aparecem quando ativos)
+  const has=sp=>S.dm1.some(c=>c.spn===sp);
+  const slots=[['att',248,112],[100,192,108],[110,500,98],[97,268,336],[96,486,342]];
+  const sysF=MODS.some(modBad);
+  slots.forEach(([k,x,y])=>{const on=k==='att'?S.dm1.length>0||sysF:has(k);
+    let p=k==='att'?TRI(sevRed()?'#E0262B':'#F2C230'):WARN[k][3];
+    if(!on) p=p.replace(/#(E0262B|F2C230|EBE2DD|fff|999)\b/gi,DIM);   // apagado: mesmo desenho em cinza quase preto
+    const tgt=k==='att'?(S.dm1.find(c=>WARN[c.spn][2]==='red')||S.dm1[0]||{}).spn:k;
+    g+=`<g transform="translate(${x} ${y})" ${on&&tgt?`data-msg="${tgt}" style="cursor:pointer"`:''} class="${on&&S.fresh===k?'blink':''}"><rect x="-4" y="-4" width="42" height="42" fill="transparent"/><svg width="34" height="34" viewBox="0 0 40 40">${p}</svg></g>`});
+  $('home').innerHTML=`<style>.blink{animation:b .8s steps(1) infinite}@keyframes b{50%{opacity:.15}}</style>`+g;
+}
+
+// ---------- DIAGNÓSTICO SISTEMA ----------
+function drawSys(){
+  const dot=bad=>`<i class="dot" style="background:${bad?'var(--red)':'var(--lime)'}"></i>`;
+  const st=m=>!m.on?'SEM REDE':nFail(m)?nFail(m)+(nFail(m)===1?' falha':' falhas'):'OK';
+  $('mods').innerHTML=MODS.map((m,i)=>`<div class="mod ${i===S.mod?'sel':''}" data-m="${i}">
+    <div class="h"><b>${m.n}</b>${dot(modBad(m))}</div>
+    <div class="h"><small>${m.loc}</small><span class="s ${modBad(m)?'bad':'ok'}">${st(m)}</span></div></div>`).join('');
+  const m=MODS[S.mod];
+  $('mtitle').textContent=`${m.n} - ${m.loc}  -  `+(m.on?`${m.it.length-nFail(m)}/${m.it.length} OK`:'SEM REDE');
+  $('outs').innerHTML=m.it.map(([c,t],k)=>{const f=!m.on||!!m.f[k];return `<div class="${f?'f':''}"><span>${c}  ${t}</span>${dot(f)}</div>`}).join('');
+  // como no PROG_Diagnostic: sem rede = um quadro só; senão até 3 falhas (shortcut do ST)
+  const det=!m.on?[['Modulo sem comunicacao','FORA DA REDE','','Verifique a alimentacao do modulo e o cabo CAN.']]
+    :Object.entries(m.f).slice(0,3).map(([k,[s,hr]])=>{const [c,t]=m.it[k];
+      return m.cab?[`${c} - ${t}`,k<=2?'SEM COMUNICACAO':'FALHA NA SAIDA','',k<=2?'Verifique o conector e o cabo CAN.':'Verifique a carga ligada na saida do display.']
+                  :[`${c} - ${t}`,OUT_FAULT[s][0],hr,OUT_FAULT[s][1]]});
+  $('ofail').innerHTML=det.length?det.map(([t,tp,hr,d])=>`<div class="of"><div class="h"><b>${t}</b><span class="tp">${tp}</span><span class="hr">${hr}</span></div><div class="d">${d}</div></div>`).join('')
+    :'<div class="of ok">Todas as saidas respondendo.</div>';
+}
+// ---------- ALERTAS ----------
+// dados iguais ao PROG_Alert: dtc[].active / occ / level (2 = grave, lâmpada vermelha) + lâmpadas J1939 do DM1
+const lvl=c=>WARN[c.spn]&&WARN[c.spn][2]==='red'?2:1;
+// lâmpadas do painel do manual MWM (Ícones do Dashboard, pág. 21): Advertência/Aviso do DM1; despotenciamento pela tabela do manual (F_DtcDerate)
+const DERATE=new Set('29/2 29/3 29/4 29/31 84/19 91/2 91/3 91/4 91/31 100/1 102/0 102/1 105/0 108/1 110/0 110/16 111/1 157/0 157/1 157/3 157/4 157/31 164/0 164/1 190/2 190/5 190/14 444/0 444/1 513/2 628/2 629/2 629/14 629/19 632/7 632/14 632/31 633/2 633/3 633/4 633/5 633/6 650/12 651/3 651/4 651/5 652/3 652/4 652/5 653/3 653/4 653/5 654/3 654/4 654/5 655/3 655/4 655/5 656/3 656/4 656/5 723/2 723/5 723/7 898/2 898/9 1188/0 1188/1 1239/0 1569/14 1675/31 2972/3 2972/4 2974/3 2974/4 3509/2 3509/3 3509/4 3509/6 3510/2 3510/3 3510/4 3510/6 3511/2 3511/3 3511/4 3511/6 5006/3 5006/4 5357/2 5357/14 5357/31 5395/2 5571/2 5571/14 5571/31'.split(' '));
+const LAMP=[
+  ['ADVERTÊNCIA','Pare o motor',c=>c.some(x=>lvl(x)===2),'<rect x="2" y="2" width="36" height="36" rx="5" fill="#E0262B"/><path d="M20 8.5 33 31.5H7Z" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round"/><path d="M20 16v7.5" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/><circle cx="20" cy="27.6" r="1.8" fill="#FFFFFF"/>','<path d="M20 8.5 33 31.5H7Z" fill="none" stroke="#4A4A4A" stroke-width="3" stroke-linejoin="round"/><path d="M20 16v7.5" stroke="#4A4A4A" stroke-width="3" stroke-linecap="round"/><circle cx="20" cy="27.6" r="1.8" fill="#4A4A4A"/>'],
+  ['AVISO','Verificar motor',c=>c.some(x=>lvl(x)===1),'<rect x="2" y="2" width="36" height="36" rx="5" fill="#F2C230"/><path d="M20 8.5 33 31.5H7Z" fill="none" stroke="#000000" stroke-width="3" stroke-linejoin="round"/><path d="M20 16v7.5" stroke="#000000" stroke-width="3" stroke-linecap="round"/><circle cx="20" cy="27.6" r="1.8" fill="#000000"/>','<path d="M20 8.5 33 31.5H7Z" fill="none" stroke="#4A4A4A" stroke-width="3" stroke-linejoin="round"/><path d="M20 16v7.5" stroke="#4A4A4A" stroke-width="3" stroke-linecap="round"/><circle cx="20" cy="27.6" r="1.8" fill="#4A4A4A"/>'],
+  ['POT. REDUZIDA','Motor limitando',c=>c.some(x=>DERATE.has(x.spn+'/'+x.fmi)),'<rect x="2" y="2" width="36" height="36" rx="5" fill="#F2C230"/><path transform="translate(6 7) scale(.7)" d="M8 14h6v-3h10v3h4l3 4h4v10h-4l-3 4H14l-3-4H6v-6H3v-4h3v-4Z" fill="none" stroke="#000000" stroke-width="3.6" stroke-linejoin="round"/><path d="M19 16v8M15.8 21 19 24.4 22.2 21" fill="none" stroke="#000000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>','<path transform="translate(6 7) scale(.7)" d="M8 14h6v-3h10v3h4l3 4h4v10h-4l-3 4H14l-3-4H6v-6H3v-4h3v-4Z" fill="none" stroke="#4A4A4A" stroke-width="3.6" stroke-linejoin="round"/><path d="M19 16v8M15.8 21 19 24.4 22.2 21" fill="none" stroke="#4A4A4A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'],
+  ['ÁGUA NO COMB.','Drene o filtro',c=>c.some(x=>x.spn===97),'<rect x="2" y="2" width="36" height="36" rx="5" fill="#F2C230"/><rect x="8" y="10" width="13" height="21" rx="1.5" fill="#000000"/><rect x="10.5" y="12.5" width="8" height="5.5" fill="#F2C230"/><rect x="6" y="30" width="17" height="3" rx="1" fill="#000000"/><path d="M21 15h3.5v10.5a2 2 0 0 0 4 0V16l-2.5-3" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M31.5 7c-1.6 2.4-2.6 3.8-2.6 5a2.6 2.6 0 0 0 5.2 0c0-1.2-1-2.6-2.6-5Z" fill="#000000"/><path d="M33.5 17c-1.2 1.8-2 2.9-2 3.8a2 2 0 0 0 4 0c0-.9-.8-2-2-3.8Z" fill="#000000"/>','<path d="M9.5 10h10a1.5 1.5 0 0 1 1.5 1.5V31H8V11.5A1.5 1.5 0 0 1 9.5 10ZM10.5 12.5v5.5h8v-5.5Z" fill="#4A4A4A" fill-rule="evenodd"/><rect x="6" y="30" width="17" height="3" rx="1" fill="#4A4A4A"/><path d="M21 15h3.5v10.5a2 2 0 0 0 4 0V16l-2.5-3" fill="none" stroke="#4A4A4A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M31.5 7c-1.6 2.4-2.6 3.8-2.6 5a2.6 2.6 0 0 0 5.2 0c0-1.2-1-2.6-2.6-5Z" fill="#4A4A4A"/><path d="M33.5 17c-1.2 1.8-2 2.9-2 3.8a2 2 0 0 0 4 0c0-.9-.8-2-2-3.8Z" fill="#4A4A4A"/>']];
+function trackDtc(){ // detecta entrada/saída de códigos: conta ocorrência, move p/ inativos e grava no histórico
+  const cur=new Set(S.dm1.map(c=>c.spn)), t=now(), hm=pad2(t.getHours())+':'+pad2(t.getMinutes());
+  S.dm1.forEach(c=>{S.lastC[c.spn]=c; if(!S.prev.has(c.spn)){S.occ[c.spn]=(S.occ[c.spn]||0)+1;S.old=S.old.filter(o=>o.spn!==c.spn);
+    S.hist.unshift({t:`${pad2(t.getDate())}/${pad2(t.getMonth()+1)} ${hm}`,d:c.d,lv:lvl(c),spn:c.spn,fmi:c.fmi,end:null})}});
+  S.prev.forEach(sp=>{if(cur.has(sp))return; const c=S.lastC[sp], h=S.hist.find(x=>x.d===c.d&&!x.end); if(h)h.end=hm; if(!S.old.some(o=>o.spn===sp))S.old.push(c)});
+  S.prev=cur;
+}
+// causas e reparos do manual MWM (no PLC vem do F_DtcHelp, linha a linha; 13 linhas por página)
+const HELP={"110/16": ["P0217 - lampada amarela - perde potencia - manual pag. 84", "CAUSAS POSSIVEIS", "1. Fluido de arrefecimento com nivel abaixo do especificado pelo", "   fabricante.", "2. Diminuicao da eficiencia do sistema de arrefecimento (restricao,", "   tubulacao, radiador furado ou obstruido).", "3. Valvula termostatica danificada.", "4. Sensor danificado.", "O QUE FAZER", "1. Verificar nivel do fluido de arrefecimento do motor de acordo com", "   especificado pelo fabricante.", "2. Verificar se o sistema de arrefecimento esta trabalhando corretamente", "   (tubos de passagem do fluido montados corretamente, localizar", "   possiveis vazamentos).", "3. Verificar se a valvula termostatica esta trabalhando corretamente.", "4. Verificar se o sensor da temperatura do fluido de arrefecimento esta", "   medindo corretamente (de acordo com especificacao do Manual).", "5. Substituir sensor se necessario."], "97/31": ["P2269 - lampada amarela - nao perde potencia - manual pag. 326", "CAUSAS POSSIVEIS", "1. Agua no combustivel foi detectada.", "2. Curto circuito do chicote do sensor de agua no combustivel (pino 1.81", "   - sensor analogico com resistor 82k ohm ou pino 1.64 - sensor", "   digital).", "3. Sensor ou modulo de agua no combustivel danificado.", "O QUE FAZER", "1. Verificar a existencia de agua no pre filtro de combustivel e retirar", "   agua no pre filtro de combustivel", "2. Verificar chicote do sensor de agua no combustivel.", "3. Substituir sensor ou modulo de agua no combustivel."], "100/1": ["P0524 - lampada vermelha - perde potencia - manual pag. 42", "CAUSAS POSSIVEIS", "1. Nivel de oleo abaixo do limite especificado pelo fabricante.", "2. Vazamento de oleo lubrificante.", "3. Bomba de oleo danificada.", "4. Sensor de oleo danificado.", "O QUE FAZER", "1. Verificar nivel do oleo lubrificante conforme especificado.", "2. Verificar se existe algum vazamente de oleo lubrificante no motor.", "3. Verificar o estado da bomba de oleo lubrificante.", "4. Substituir sensor se necessario."], "110/0": ["P0217 - lampada vermelha - perde potencia - manual pag. 74", "CAUSAS POSSIVEIS", "1. Fluido de arrefecimento com nivel abaixo do especificado pelo", "   fabricante.", "2. Diminuicao da eficiencia do sistema de arrefecimento (restricao,", "   tubulacao, radiador furado ou obstruido).", "3. Valvula termostatica danificada.", "4. Sensor danificado.", "O QUE FAZER", "1. Verificar nivel do fluido de arrefecimento do motor de acordo com", "   especificado pelo fabricante.", "2. Verificar se o sistema de arrefecimento esta trabalhando corretamente", "   (tubos de passagem do fluido montados corretamente, localizar", "   possiveis vazamentos).", "3. Verificar se a valvula termostatica esta trabalhando corretamente.", "4. Verificar se o sensor da temperatura do fluido de arrefecimento esta", "   medindo corretamente (de acordo com especificacao do Manual).", "5. Substituir sensor se necessario."]};
+function drawAlerts(){
+  const off=!!MODS[3].f[0], per=5; // histórico usa os mesmos 5 cartões (PROG_EngAlertScreen)
+  $('atabs').innerHTML=['ATIVOS','HISTÓRICO'].map((t,i)=>`<button data-atab="${i}" class="${S.atab===i?'on':''}">${t}</button>`).join('');
+  $('lamps').innerHTML=LAMP.map(([n,sub,f,ic,icOff])=>{const on=!off&&f(S.dm1);return `<div class="lamp on" style="${on?'':'color:#4a4a4a'}"><svg viewBox="0 0 40 40">${on?ic:icOff}</svg><span>${n}<small>${off?'sem dados':sub}</small></span></div>`}).join('');
+  $('clr').disabled=!S.old.length||!!S.atab;
+  let rows, total;
+  if(S.atab){
+    total=S.hist.length;
+    rows=S.hist.map(h=>`<div class="dtc ${h.end?'old':h.lv===2?'':'amb'}" data-dcard="${h.spn}/${h.fmi}|${h.d}"><span><b>${h.d}</b><small>${h.t}${h.end?' até '+h.end:' · ainda ativo'} · SPN ${h.spn} / FMI ${h.fmi}</small></span><span class="lv ${h.lv===2?'':'amb'}">${h.lv===2?'GRAVE':'AVISO'}</span></div>`);
+  }else if(off){
+    total=0; rows=[`<div class="nocom"><svg viewBox="0 0 40 40" width="34" height="34">${TRI('#E0262B')}</svg><span><b>MOTOR SEM COMUNICAÇÃO</b><small>Sem dados do motor (J1939). Verifique o fusível da ECU e o cabo J1939.</small></span></div>`];
+  }else{
+    const L=[...S.dm1.map(c=>[c,1]),...S.old.map(c=>[c,0])]; total=L.length;
+    rows=L.map(([c,a])=>{const k=a?(lvl(c)===2?'':'amb'):'old';
+      return `<div class="dtc ${k}" data-dcard="${c.spn}/${c.fmi}|${c.d}"><span><b>${c.d}</b><small>SPN ${c.spn} · FMI ${c.fmi} · ${S.occ[c.spn]||1}× · ${a?(FMI[c.fmi]||''):'não está mais ocorrendo'}</small></span><span class="lv ${k}">${a?(lvl(c)===2?'GRAVE':'AVISO'):'INATIVO'}</span></div>`});
+    if(!rows.length) rows=['<div style="flex:1;display:grid;place-items:center;color:#9a9a9a;font-size:14px">Nenhum alerta do motor</div>'];
+  }
+  const pages=Math.max(1,Math.ceil(total/per)); S.apg=Math.min(S.apg,pages-1);
+  if(S.det){ // detalhe do código: o que o manual MWM diz
+    const L=HELP[S.det.k]||['Codigo fora do manual MWM (Motores 229 e Serie 12)'], B=L.slice(1), dp=Math.max(1,Math.ceil(B.length/13));
+    S.dpg=Math.min(S.dpg,dp-1);
+    $('codes').innerHTML=`<div class="det"><div class="dh"><b>${S.det.d}</b><button data-dback="1">◀ Voltar</button></div><div class="dc">SPN ${S.det.k.replace('/',' · FMI ')} · ${L[0]}</div>${B.slice(S.dpg*13,S.dpg*13+13).map(x=>`<div class="dl ${/^(CAUSAS POSSIVEIS|O QUE FAZER)$/.test(x)?'hd':''}">${x}</div>`).join('')}</div>`;
+    $('alft').innerHTML=`<span>Manual de diagnóstico MWM</span><span>▲▼ página ${S.dpg+1}/${dp} · ● voltar</span>`;
+    return;
+  }
+  $('codes').innerHTML=(total?rows.slice(S.apg*per,S.apg*per+per):rows).join('');
+  $('alft').innerHTML=`<span>${S.atab?total+' registros salvos no display':off?'':`${S.dm1.length} ativo${S.dm1.length===1?'':'s'} · ${S.old.length} inativo${S.old.length===1?'':'s'}`}</span><span>▲▼ página ${S.apg+1}/${pages} · ● ${S.atab?'ativos':'histórico'}</span>`;
+}
+// ---------- DADOS DO MOTOR: 4 leituras principais em destaque + grupos ----------
+function drawData(){
+  const E=S.e, has=s=>S.dm1.some(c=>c.spn===s);
+  const kpi=(n,v,u,pct,warn)=>`<div class="kpi ${warn?'warn':''}"><span>${n}</span><b>${v}<small>${u}</small></b><div class="rng"><i style="width:${lim(pct,0,100)}%"></i></div></div>`;
+  const r=(n,v,u)=>`<div class="r"><span>${n}</span><b>${v}<small>${u}</small></b></div>`,
+    g=(t,pgn,rows)=>`<fieldset class="grp"><legend>${t}<small>${pgn}</small></legend>${rows}</fieldset>`;
+  $('data').innerHTML=`<div class="big4" style="grid-column:1/-1">
+      ${kpi('ROTAÇÃO',S.rpm,'rpm',S.rpm/28)}${kpi('TEMP. ARREFECIMENTO',S.cool,'ºC',(S.cool-40)/80*100,S.cool>=105||has(110))}
+      ${kpi('PRESSÃO DO ÓLEO',E.oilP,'kPa',E.oilP/7,has(100))}${kpi('BATERIA',S.bat.toFixed(1),'V',(S.bat-10)/5*100,S.bat<12)}</div>`+
+    g('Carga do motor','EEC',r('Percentual de uso',E.load,'%')+r('Torque atual',S.torque,'%'))+
+    g('Combustível e injeção','LFC/E · EFL/P · WFI',r('Taxa de consumo',E.rate.toFixed(2),'l/h')+r('Consumo total',Math.round(E.cons).toLocaleString('pt-BR'),'l')+r('Pressão do trilho dos injetores',E.rail.toFixed(1),'kPa')+r('Água no combustível',has(97)?'<span style="color:#F2C230">SIM</span>':'NÃO',''))+
+    `<fieldset class="grp" style="grid-column:1/-1"><legend>Admissão de ar<small>IC1 · AMB</small></legend><div style="display:grid;grid-template-columns:1fr 1fr;column-gap:24px">
+      ${r('Pressão do coletor de admissão',E.ip,'kPa')+r('Temp. do coletor de admissão',E.it,'ºC')+r('Pressão do ar de admissão',E.air,'kPa')+r('Pressão atmosférica',E.pAtm.toFixed(2),'kPa')}</div></fieldset>`;
+}
+// ---------- CONFIGURAÇÕES ----------
+const LOGO_BW="data:image/png;base64,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";
+function drawCfg(){
+  const stp=(k,st,u,attr)=>`<span class="stp"><button data-${attr}="${k}" data-d="${-st}" ${S.autoBr&&attr==='brk'?'disabled':''} aria-label="Diminuir">−${st}</button><b>${attr==='brk'&&S.autoBr?'AUTO':S[k]}<small>${attr==='brk'&&S.autoBr?'':u}</small></b><button data-${attr}="${k}" data-d="${st}" ${S.autoBr&&attr==='brk'?'disabled':''} aria-label="Aumentar">+${st}</button></span>`;
+  const sw=(k)=>`<button class="sw2" data-tg="${k}" role="switch" aria-checked="${!!S[k]}"><span class="${S[k]?'':'a0'}">DESL</span><span class="${S[k]?'a1':''}">LIGA</span></button>`;
+  const row=(l,sub,ctl)=>`<div class="crow2"><span class="l2">${l}${sub?`<small>${sub}</small>`:''}</span>${ctl}</div>`;
+  $('op').innerHTML=
+    row('Setpoint RPM A','Preset A do CR1301',stp('spA',100,'rpm','sp'))+
+    row('Setpoint RPM B','Preset B do CR1301',stp('spB',100,'rpm','sp'))+
+    row('RPM manual','',stp('rpmMan',100,'rpm','sp'))+
+    row('Potência de ré','',sw('potRe'))+
+    row('Proteção do motor','',sw('prot'));
+  const d=now();
+  $('sys').innerHTML=
+    row('Horímetro do motor','',`<span class="lcd">${S.hours.toFixed(1)}<small>h</small></span>`)+
+    row('Data e hora',`${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`,'<button class="sq" data-go="4">AJUSTAR</button>')+
+    row('Brilho automático',S.autoBr?'Pelo sensor de luz do display':'',sw('autoBr'))+
+    row('Brilho',S.autoBr?'Tela e teclas':'',`<span class="brs"><input type="range" min="15" max="100" value="${S.autoBr?autoBr():S.bright}" data-brs ${S.autoBr?'disabled':''} aria-label="Brilho da tela"><b id="brv">${S.autoBr?autoBr():S.bright}%</b></span>`)+
+    row('Modo noturno',S.night?'Toque acende por 10 s':'',sw('night'))+
+    `<div class="brand2"><img src="${LOGO_BW}" alt="Pro Solus" style="height:22px;flex:none"><span><b style="color:#fff">Versão ${VER.slice(1)}</b><br>PRO SOLUS DO BRASIL<br>Campo Mourão - PR</span></div>
+    <button class="sq full" style="margin-top:auto" data-man="1"><svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2Z"/><path d="M4 21V5M8 7h7M8 11h7"/></svg>MANUAL DE USO</button>`;
+}
+// ---------- MANUAL (no CODESYS: imagens do pool; dá para trocar os ícones por fotos reais) ----------
+const PADI='<rect x="8" y="8" width="24" height="24" rx="4"/><path d="M20 11l-3 4h6ZM20 29l-3-4h6ZM11 20l4-3v6ZM29 20l-4-3v6Z"/><circle cx="20" cy="20" r="3"/>';
+const MAN=[
+  [IC.home,'Início','Volta para a tela inicial de qualquer tela.'],
+  [IC.hz,'Pisca-alerta','Liga ou desliga as setas dos dois lados juntas.'],
+  [IC.work,'Luz de trabalho','Liga ou desliga os faróis de trabalho.'],
+  [IC.up,'Subir escada','Recolhe a escada de acesso à cabine.'],
+  [IC.down,'Descer escada','Abaixa a escada. Aceso em laranja enquanto ela estiver abaixada.'],
+  [IC.pump,'Bomba de pulverização','Liga ou desliga a bomba. O RPM aparece ao lado da tecla.'],
+  [PADI,'Direcional','◀ ▶ troca de tela · ▲ ▼ escolhe o item · ● confirma.'],
+  ['<path d="M20 4 37 35H3Z"/><path d="M20 15v9M20 29v.5"/>','Avisos do motor','Aparecem entre os mostradores. Toque no ícone para ver a mensagem; detalhes na tela Alertas.'],
+  ['<circle cx="20" cy="20" r="10"/><path d="M20 14v7M20 25v.5M6 11a16 16 0 0 0 0 18M34 11a16 16 0 0 1 0 18"/>','Freio de estacionamento','Ícone vermelho no topo: freio acionado.'],
+  ['<circle cx="20" cy="20" r="15"/><path d="M12 20h16"/>','STOP','Acende quando o motor pede parada imediata.'],
+  ['<path d="M8 32V8h24v24Z"/><path d="M8 20h24M20 8v24"/>','Movimento de barras','Segure o botão: soltou, parou. Os do meio movem os dois lados juntos. Geometria e quadro ficam na Regulagem.'],
+  ['<circle cx="20" cy="20" r="14"/><path d="M20 20l7-7"/><path d="M20 8v3M8 20h3M29 20h3"/>','Mostradores','Torque à esquerda, rotação no centro, temperatura e combustível à direita.']];
+function drawManual(){
+  const per=6, pages=Math.ceil(MAN.length/per); S.mpg=(S.mpg||0)%pages;
+  $('man').innerHTML=MAN.slice(S.mpg*per,S.mpg*per+per).map(([ic,t,dsc])=>`<div class="mcard"><div class="pic"><svg viewBox="0 0 40 40">${ic}</svg></div><div><b>${t}</b><p>${dsc}</p></div></div>`).join('');
+  $('manpg').textContent=`Página ${S.mpg+1} de ${pages}`;
+}
+// ---------- DATA E HORA ----------
+const FIELDS=[['DIA','d',1,31],['MÊS','mo',1,12],['ANO','y',2024,2099],['HORA','h',0,23],['MIN','mi',0,59]];
+const dim=(y,m)=>new Date(y,m,0).getDate();
+function drawClk(){
+  const e=S.edit;
+  $('prev').innerHTML=`<div style="font-size:44px;font-weight:700">${pad2(e.h)}:${pad2(e.mi)}</div><div style="font-size:16px;color:#bdbdbd">${pad2(e.d)}/${pad2(e.mo)}/${e.y}</div>`;
+  $('spins').innerHTML=FIELDS.map(([n,k],i)=>(i===3?'<span class="sep"> </span>':'')+`<div class="spin ${i===S.field?'sel':''}" data-f="${i}"><small>${n}</small><button data-st="${i}" data-d="1" aria-label="Aumentar ${n}">▲</button><b>${k==='y'?e[k]:pad2(e[k])}</b><button data-st="${i}" data-d="-1" aria-label="Diminuir ${n}">▼</button></div>`).join('');
+}
+function step(i,d){
+  const [,k,lo,hi0]=FIELDS[i], e=S.edit, hi=k==='d'?dim(e.y,e.mo):hi0;
+  e[k]=e[k]+d>hi?lo:e[k]+d<lo?hi:e[k]+d;
+  e.d=Math.min(e.d,dim(e.y,e.mo));
+}
+function openClk(){const d=now();S.edit={d:d.getDate(),mo:d.getMonth()+1,y:d.getFullYear(),h:d.getHours(),mi:d.getMinutes()};S.field=0;S.back=S.page;S.page=4}
+function saveClk(){const e=S.edit;S.clkOff=new Date(e.y,e.mo-1,e.d,e.h,e.mi,now().getSeconds()).getTime()-Date.now();S.page=3}
+
+// ---------- MOVIMENTO DE BARRAS ----------
+// colunas de fora p/ dentro: ponteira | geometria (barra) | abre/fecha barra | quadro; pp/bb = as duas ponteiras / as duas barras
+// em cima: diagrama só com ponteira e barra (individual + os dois lados); embaixo: regulagem com 4 botões (geometria e quadro)
+const BX=[118,250,368,486,618], BW=88, BH=46, YU=108, YD=226, LN=196; // sem título: diagrama ocupa a parte de cima
+const PARTS=[['pe',0,'PONTEIRA','dg'],['be',1,'BARRA','fd'],['bd',3,'BARRA','fd'],['pd',4,'PONTEIRA','dg']];
+const BOTH={pp:['pe','pd'],bb:['be','bd'],ge:['pe','be'],gd:['bd','pd'],q:['pe','be','bd','pd']}; // quadro sobe/desce a barra inteira; // geometria acende a asa inteira do lado
+const AR='<path d="M12 3 20 12h-5v9H9v-9H4Z" stroke="none"/>';
+const ARW={out:'<path d="M20 20c0-6.5-3.8-10.5-10-10.5" fill="none" stroke-width="3.6"/><path d="M11.5 4 3 9.5l8.5 5.5Z" stroke="none"/>',
+  in:'<path d="M4 20c0-6.5 3.8-10.5 10-10.5" fill="none" stroke-width="3.6"/><path d="M12.5 4 21 9.5l-8.5 5.5Z" stroke="none"/>'};
+function barIcon(k,d,right){ // d>0 sobe/abre; right = lado direito (espelha)
+  const m=right?-1:1, rot=a=>`<g transform="rotate(${a} 12 12)">${AR}</g>`;
+  if(k==='vt') return d>0?AR:rot(180);
+  if(k==='dg') return rot(m*(d>0?-45:-135));
+  if(k==='tl') return `<g transform="${right?'translate(24 0) scale(-1 1)':''}"><path d="M3 21h9" stroke-width="2.6" fill="none"/>${d>0?'<path d="M7 19 17 9" stroke-width="2.6" fill="none"/><path d="M13 6h7v7Z" stroke="none"/>':'<path d="M7 9 17 19" stroke-width="2.6" fill="none"/><path d="M13 22h7v-7Z" stroke="none"/>'}</g>`;
+  if(k==='fd') return `<g transform="${right?'translate(24 0) scale(-1 1)':''}">${d>0?ARW.out:ARW.in}</g>`;
+  if(k==='pp') return `<g transform="translate(-1 5) scale(.6)">${rot(d>0?-45:-135)}</g><g transform="translate(10.6 5) scale(.6)">${rot(d>0?45:135)}</g>`;
+  if(k==='bb') return `<g transform="translate(-.5 5) scale(.55)">${d>0?ARW.out:ARW.in}</g><g transform="translate(24.5 5) scale(-.55 .55)">${d>0?ARW.out:ARW.in}</g>`;
+}
+function drawBars(){
+  const H=S.held, act=id=>H&&(H.s===id||(BOTH[H.s]||[]).includes(id))?H.d:0;
+  const btn=(id,x,y,d,lbl,ic,right,cls='',w=BW,h=BH)=>`<button class="arw ${d>0?'up':'dn'} ${cls} ${H&&H.s===id&&H.d===d?'held':''}" style="left:${x-w/2}px;top:${y}px;width:${w}px;height:${h}px" data-b="${id}" data-d="${d}" aria-label="${lbl}"><svg viewBox="0 0 24 24">${barIcon(ic,d,right)}</svg>${lbl}</button>`;
+  let h='';
+  PARTS.forEach(([id,c,nm,ic])=>{const r=c>2;
+    h+=btn(id,BX[c],YU,1,'ABRE',ic,r)+btn(id,BX[c],YD,-1,'FECHA',ic,r)+`<div class="nm" style="left:${BX[c]-46}px;top:${LN+6}px">${nm}</div>`;});
+  h+=btn('pp',368,52,1,'PONTEIRAS','pp',0,'both')+btn('bb',368,YU,1,'BARRAS','bb',0,'both')+btn('bb',368,YD,-1,'BARRAS','bb',0,'both')+btn('pp',368,284,-1,'PONTEIRAS','pp',0,'both');
+  // regulagem: geometria esquerda | quadro | geometria direita (cada lado no seu lado da tela)
+  h+=`<fieldset class="reg"><legend>Regulagem</legend><span>GEOM. ESQUERDA</span><span>QUADRO</span><span>GEOM. DIREITA</span></fieldset>`;
+  h+=[['ge',114,0],['q',324,0],['gd',534,1]].map(([id,x,r])=>btn(id,x,384,1,'SOBE',id==='q'?'vt':'tl',r,'',80,44)+btn(id,x+88,384,-1,'DESCE',id==='q'?'vt':'tl',r,'',80,44)).join('');
+  const col=d=>d>0?'#8BC63E':d<0?'#E0262B':null;
+  let g='';
+  // Tupan visto de trás: tanque quadrado em cima, chassi alto e rodas estreitas
+  const M='#FFFFFF';
+  g+=`<g transform="translate(336 ${LN-36})" stroke="${M}" stroke-linejoin="round"><rect x="28" y="-3" width="8" height="3" rx="1" fill="${M}" stroke="none"/><rect x="13" y="0" width="38" height="26" rx="3" fill="#111" stroke-width="2.2"/><path d="M13 9h38" stroke-width="1.4"/><rect x="3" y="26" width="58" height="4" rx="1.5" fill="${M}" stroke="none"/><path d="M6.5 30v4M57.5 30v4" stroke-width="3"/><rect x="1" y="33" width="11" height="24" rx="3.5" fill="#1b1b1b" stroke-width="2"/><rect x="52" y="33" width="11" height="24" rx="3.5" fill="#1b1b1b" stroke-width="2"/><path d="M3.5 38h6M3.5 43h6M3.5 48h6M3.5 53h6M54.5 38h6M54.5 43h6M54.5 48h6M54.5 53h6" stroke-width="1.2"/></g>`;
+  // barra de pulverização (branca, separada da máquina): base reta, larga perto do quadro e afinando até a ponteira
+  const yb=LN+5, trap=(xi,xo,ti,to,id)=>{const c=col(act(id));return `<path d="M${xi} ${yb}L${xi} ${yb-ti}L${xo} ${yb-to}L${xo} ${yb}Z" fill="${c||M}"/>`};
+  g+=trap(324,200,14,8,'be')+trap(194,52,7,3,'pe')+trap(412,536,14,8,'bd')+trap(542,684,7,3,'pd');
+  // ligações dos botões do meio aos botões de cada lado (ponteiras: por cima/baixo; barras: reto)
+  const lc=id=>col(H&&H.s===id?H.d:0)||'#555';
+  const tip=(x,y,dir)=>`<path d="M${x-dir*6} ${y-4}L${x} ${y}L${x-dir*6} ${y+4}" fill="none" stroke-width="1.6"/>`; // dir: -1 aponta p/ esquerda
+  const vtip=(x,y,dir)=>`<path d="M${x-4} ${y-dir*6}L${x} ${y}L${x+4} ${y-dir*6}" fill="none" stroke-width="1.6"/>`;
+  g+=`<g stroke="${lc('pp')}" stroke-width="1.6" fill="none"><path d="M324 75H${BX[0]}V${YU}M412 75H${BX[4]}V${YU}"/>${vtip(BX[0],YU,1)+vtip(BX[4],YU,1)}<path d="M324 307H${BX[0]}V${YD+BH}M412 307H${BX[4]}V${YD+BH}"/>${vtip(BX[0],YD+BH,-1)+vtip(BX[4],YD+BH,-1)}</g>`;
+  g+=`<g stroke="${lc('bb')}" stroke-width="1.6" fill="none"><path d="M324 ${YU+23}H${BX[1]+BW/2}M412 ${YU+23}H${BX[3]-BW/2}M324 ${YD+23}H${BX[1]+BW/2}M412 ${YD+23}H${BX[3]-BW/2}"/>${tip(BX[1]+BW/2,YU+23,-1)+tip(BX[3]-BW/2,YU+23,1)+tip(BX[1]+BW/2,YD+23,-1)+tip(BX[3]-BW/2,YD+23,1)}</g>`;
+  $('bars').innerHTML=`<svg class="ln" viewBox="0 0 736 480">${g}</svg>`+h;
+}
+
+// ---------- SIMULADOR ----------
+document.querySelectorAll('[data-srange] .ri').forEach(e=>e.innerHTML=RANGE_IC[e.parentNode.dataset.srange]);
+const SL={rpm:v=>v+' rpm',torque:v=>v+' %',cool:v=>v+' °C',fuel:v=>v+' %',bat:v=>(+v).toFixed(1)+' V',amb:v=>v+' %'};
+function syncSim(){
+  document.querySelectorAll('[data-sdir]').forEach(b=>b.classList.toggle('on',b.dataset.sdir===S.dir));
+  document.querySelectorAll('[data-srange]').forEach(b=>b.classList.toggle('on',+b.dataset.srange===S.range));
+  document.querySelectorAll('[data-stg]').forEach(b=>b.classList.toggle('on',!!S[b.dataset.stg]));
+  document.querySelectorAll('[data-sfuel]').forEach(b=>{const f=(S.dm1.find(c=>c.spn===96)||{}).fmi;b.classList.toggle('on',b.dataset.sfuel==='20'?f===18:b.dataset.sfuel==='6'?f===1:false)});
+  document.querySelectorAll('[data-sout]').forEach(b=>{const [i,k]=b.dataset.sout.split('|');b.classList.toggle('on',!!MODS[i].f[k])});
+  document.querySelectorAll('[data-soff]').forEach(b=>b.classList.toggle('on',!MODS[b.dataset.soff].on));
+  document.querySelectorAll('[data-skey]').forEach(b=>b.classList.toggle('on',b.dataset.skey==='1'?S.hazard:S.pump));
+}
+document.addEventListener('input',e=>{
+  if(!e.target.matches('[data-brs]')) return;
+  if(asleep()){e.target.value=S.bright;return}
+  S.bright=+e.target.value; $('brv').textContent=S.bright+'%'; touch(); applyBr();
+});
+Object.keys(SL).forEach(k=>{
+  const r=$('r_'+k), o=$('o_'+k);
+  r.value=S.T[k]; o.textContent=SL[k](S.T[k]);
+  r.addEventListener('input',()=>{
+    S.T[k]=+r.value; S[k]=+r.value; o.textContent=SL[k](r.value);
+    if(k==='fuel') checkFuel();
+    if(k==='cool'){const on=S.dm1.some(c=>c.spn===110);
+      if(+r.value>=105&&!on){S.dm1.push(S.ALL[110]);S.fresh=110;setTimeout(()=>{S.fresh=null},5000);showMsg(110);render()}
+      else if(+r.value<100&&on){S.dm1=S.dm1.filter(c=>c.spn!==110);render()}}
+    if(k==='amb'){applyBr(); if(S.page===3) drawCfg()}
+    if(S.page===0) drawHome(); else if(S.page===6) drawData();
+  });
+});
+
+// combustível: entra na reserva abaixo de 25 % (sai acima de 27 %), crítico abaixo de 10 % (sai acima de 12 %)
+function checkFuel(){
+  const cur=(S.dm1.find(c=>c.spn===96)||{}).fmi, f=S.fuel;
+  let st=cur===1?(f>12?(f>27?null:18):1):cur===18?(f<10?1:f>27?null:18):(f<10?1:f<25?18:null);
+  if(st===(cur??null)) return;
+  S.dm1=S.dm1.filter(c=>c.spn!==96);
+  if(st){
+    const crit=st===1;
+    WARN[96]=crit?['SEM COMBUSTÍVEL','Tanque quase vazio. Abasteça agora','red','<g fill="#E0262B"><rect x="6" y="6" width="17" height="27" rx="3"/><rect x="3" y="31" width="23" height="4" rx="1"/></g><rect x="9.5" y="10" width="10" height="7" fill="#000"/><path d="M23 13h4l4 4v13a2.5 2.5 0 0 1-5 0v-6h-3" fill="none" stroke="#E0262B" stroke-width="2.6" stroke-linejoin="round"/>']
+                 :['COMBUSTÍVEL NA RESERVA','Menos de 1/4 do tanque. Abasteça em breve','amb','<g fill="#F2C230"><rect x="6" y="6" width="17" height="27" rx="3"/><rect x="3" y="31" width="23" height="4" rx="1"/></g><rect x="9.5" y="10" width="10" height="7" fill="#000"/><path d="M23 13h4l4 4v13a2.5 2.5 0 0 1-5 0v-6h-3" fill="none" stroke="#F2C230" stroke-width="2.6" stroke-linejoin="round"/>'];
+    S.dm1.push({spn:96,fmi:st,d:crit?'Nível de combustível · crítico':'Nível de combustível · reserva'});
+    S.fresh=96; setTimeout(()=>{S.fresh=null},5000); showMsg(96);
+  }
+  render();
+}
+
+// ---------- JORNADA: contadores desde o último ZERAR (no PLC: RETAIN, zerados pelo botão) ----------
+const f1=v=>v.toFixed(1).replace('.',',');
+function drawTrip(){
+  const T=S.trip, h=S.hours-T.h0, f=S.e.cons-T.f0;
+  const k=(n,v,u,sub)=>`<div class="kpi big"><span>${n}</span><b>${v}<small>${u}</small></b><em>${sub}</em></div>`;
+  $('trip').innerHTML=k('HORAS DE MOTOR',f1(h),'h','desde '+T.since)+k('COMBUSTÍVEL USADO',Math.round(f),'l','consumo total do motor')+
+    k('CONSUMO MÉDIO',h>0?f1(f/h):'0,0','l/h','combustível ÷ horas')+k('BOMBA LIGADA',f1(T.pump),'h',h>0?Math.round(T.pump/h*100)+' % do tempo de motor':'')+
+    `<div style="grid-column:1/-1;display:flex;gap:14px;align-items:center"><button class="sq" data-trip0="1" style="${S.tripArm?'border-color:var(--red);background:#1a0909':''}">${S.tripArm?'TOQUE DE NOVO P/ ZERAR':'ZERAR JORNADA'}</button><span class="tripft">Zere no começo de cada dia de trabalho</span></div>`;
+}
+// ---------- MENU DE APPS (modo de apresentação: no carrossel fica Início, Barras e Menu) ----------
+const APPI={
+  sys:'<rect x="8" y="8" width="24" height="24" rx="3"/><rect x="14" y="14" width="12" height="12" rx="1"/><path d="M14 4v4M20 4v4M26 4v4M14 32v4M20 32v4M26 32v4M4 14h4M4 20h4M4 26h4M32 14h4M32 20h4M32 26h4"/>',
+  alr:'<path d="M20 4 37 35H3Z"/><path d="M20 15v10"/><circle cx="20" cy="30" r="1" fill="currentColor"/>',
+  mot:'<path d="M8 15h6v-4h10v4h4l3 4h4v10h-4l-3 4H14l-3-4H6v-6H3v-4h3v-4Z"/>',
+  trp:'<circle cx="20" cy="23" r="13"/><path d="M20 23v-8M16 4h8M20 4v6M31 12l2.5-2.5"/>',
+  cfg:'<circle cx="20" cy="20" r="5"/><path d="M20 4v5M20 31v5M4 20h5M31 20h5M8.7 8.7l3.5 3.5M27.8 27.8l3.5 3.5M8.7 31.3l3.5-3.5M27.8 12.2l3.5-3.5"/><circle cx="20" cy="20" r="11"/>',
+  man:'<path d="M7 8a3 3 0 0 1 3-3h21v27H10a3 3 0 0 0-3 3Z"/><path d="M7 35V8M13 12h12M13 18h12"/>'};
+const APPS=[ // [página, nome, ícone, selo]
+  [1,'Diag. Sistema','sys',()=>{const n=MODS.filter(modBad).length;return n?[n+(n>1?' módulos':' módulo'),'r']:['OK','g']}],
+  [2,'Alertas','alr',()=>S.dm1.length?[S.dm1.length+' ativo'+(S.dm1.length>1?'s':''),sevRed()?'r':'a']:['OK','g']],
+  [6,'Diag. Motor','mot',()=>[S.rpm+' rpm','']],
+  [8,'Jornada','trp',()=>[(S.hours-S.trip.h0).toFixed(1)+' h','']],
+  [3,'Configurações','cfg',()=>null],
+  [7,'Manual','man',()=>null]];
+function drawMenu(){
+  $('apps').innerHTML=APPS.map(([pg,n,ic,b],i)=>{const x=b();return `<button class="app ${i===S.app?'sel':''}" data-app="${i}"><svg viewBox="0 0 40 40">${APPI[ic]}</svg>${n}${x?`<span class="bd ${x[1]}">${x[0]}</span>`:''}</button>`}).join('');
+}
+function openApp(i){const pg=APPS[i][0]; S.app=i; if(pg===7){S.mpg=0;S.manBack=9} S.page=pg}
+const ISAPP=p=>S.mode==='apps'&&[1,2,3,4,6,7,8].includes(p);
+const PAGES=[drawHome,drawSys,drawAlerts,drawCfg,drawClk,drawBars,drawData,drawManual,drawTrip,drawMenu];
+const ORD=()=>S.mode==='apps'?[0,5,9]:[0,5,8,1,2,6,3]; // ◀ ▶: Início, Barras, Jornada, Diag. Sistema, Alertas, Diag. Motor, Configurações (Data/Hora e Manual abrem pelas Configurações)
+// ---------- BRILHO: tela + teclas da CR1077 + CR1301 seguem o mesmo valor (15..100; abaixo de 15 a tela apaga) ----------
+const WAKE_MS=10000;
+const autoBr=()=>Math.round(15+85*S.T.amb/100); // no PLC: leitura do sensor de luz filtrada, mapeada para 15..100
+const asleep=()=>S.night&&Date.now()>S.wake;
+const effBr=()=>asleep()?15:S.autoBr?autoBr():S.bright;
+function applyBr(){
+  const b=effBr(), d=$('dev');
+  d.style.setProperty('--sb',(.3+.7*b/100).toFixed(2)); // mockup: 15 % ainda visível na tela do PC
+  d.style.setProperty('--kl',asleep()?.08:(.15+.85*b/100).toFixed(2)); // noturno: teclas quase apagadas
+}
+function touch(){const was=asleep(); if(S.night) S.wake=Date.now()+WAKE_MS; if(was) applyBr(); return was}
+const HINT_CAR=$('hint').innerHTML;
+const HINT_APPS='Carrossel no ◀ ▶: Início → Movimento de Barras → Menu. No Menu, toque num app (ou ▲ ▼ ◀ ▶ + ●) para abrir Diag. Sistema, Alertas, Diag. Motor, Jornada, Configurações ou Manual. Dentro de um app, "◀ Menu" (ou ◀ no direcional) volta; a tecla Início vai para o Início. Data e Hora abre pelas Configurações ou tocando no relógio. Teclado: <kbd>1</kbd>–<kbd>6</kbd> = teclas, setas = direcional, <kbd>Enter</kbd> = OK. Valores simulados.';
+function render(){
+  trackDtc();
+  for(let i=0;i<10;i++) $('p'+i).hidden=S.page!==i;
+  $('back').hidden=!ISAPP(S.page)||S.page===4||S.page===7;
+  document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('on',b.dataset.mode===S.mode));
+  $('hint').innerHTML=S.mode==='apps'?HINT_APPS:HINT_CAR;
+  $('hicons').innerHTML=(S.night?`<span title="Modo noturno ativo">${MOON}</span>`:'')+`<span style="opacity:${S.brake?1:.12}">${BRAKE}</span>`;
+  syncSim();
+  clock();
+  const K=[['home',S.page===0],['hz',S.hazard],['work',S.work],['up',S.ladder==='mov-up'],['down',S.ladder==='down'||S.ladder==='mov-down'],['pump',S.pump]];
+  const lit=(on,i)=>on?(i===1?'alert':'on'):'';
+  $('strip').innerHTML=K.map(([n,on],i)=>(i===3?'<div></div>':'')+`<div class="sl ${lit(on,i)}">${svg(IC[n])}</div>`).join('');
+  document.querySelectorAll('.fk').forEach((k,i)=>k.className='fk '+lit(K[i][1],i));
+  $('dots').innerHTML=S.page===7?'':S.page===4?'◀ ▶ campo · ▲ ▼ valor · ● salvar':ISAPP(S.page)?'◀ volta ao menu':`◀ ${ORD().map(i=>`<i class="${S.page===i?'on':''}"></i>`).join('')} ▶`;
+  $('pump').classList.toggle('show',S.pump);
+  document.querySelectorAll('[data-sim]').forEach(b=>b.classList.toggle('on',S.dm1.some(c=>c.spn===+b.dataset.sim)));
+  PAGES[S.page]();
+  drawMsg();
+  applyBr();
+}
+function key(k){
+  if(k===0) S.page=0;
+  else if(k===1) S.hazard=!S.hazard;
+  else if(k===2) S.work=!S.work;
+  else if(k===3&&S.ladder==='down'){S.ladder='mov-up';setTimeout(()=>{S.ladder='up';render()},3000)}
+  else if(k===4&&S.ladder==='up'){S.ladder='mov-down';setTimeout(()=>{S.ladder='down';render()},3000)}
+  else if(k===5) S.pump=!S.pump;
+  render();
+}
+function nav(n){
+  if(S.page===7){ if(n!=='ok'){S.mpg=(S.mpg||0)+1} }
+  else if(S.page===4){
+    if(n==='l'||n==='r') S.field=(S.field+(n==='r'?1:4))%5;
+    else if(n==='u'||n==='d') step(S.field,n==='u'?1:-1);
+    else if(n==='ok') saveClk();
+  }else if(S.page===9&&(n!=='l'&&n!=='r'||n==='l'&&S.app%3||n==='r'&&S.app%3<2)){ // menu: setas escolhem o app, ● abre; ◀/▶ na borda volta ao carrossel
+    if(n==='ok') openApp(S.app); else S.app=(S.app+({u:-3,d:3,l:-1,r:1}[n])+6)%6;
+  }else if(ISAPP(S.page)&&(n==='l'||n==='r')){ if(n==='l') S.page=9 }
+  else if(n==='l'||n==='r'){const O=ORD(),i=O.indexOf(S.page),L=O.length;S.page=O[(i+(n==='r'?1:L-1))%L]}
+  else if(S.page===1&&(n==='u'||n==='d')) S.mod=(S.mod+(n==='d'?1:3))%4;
+  else if(S.page===2&&S.det&&(n==='u'||n==='d')) S.dpg=Math.max(0,S.dpg+(n==='d'?1:-1));
+  else if(S.page===2&&S.det&&n==='ok') S.det=null;
+  else if(S.page===2&&(n==='u'||n==='d')) S.apg=Math.max(0,S.apg+(n==='d'?1:-1));
+  else if(S.page===2&&n==='ok'){S.atab=1-S.atab;S.apg=0}
+  render();
+}
+document.addEventListener('click',e=>{
+  if(e.target.closest('#dev')&&touch()&&e.target.closest('.screen')) return;
+  const t=e.target.closest('[data-k],[data-n],[data-m],[data-clr],[data-sp],[data-tg],[data-br],[data-go],[data-st],[data-f],[data-save],[data-cancel],[data-man],[data-back],[data-sim],[data-msg],[data-dir],[data-sdir],[data-srange],[data-stg],[data-skey],[data-sfuel],[data-sout],[data-soff],[data-atab],[data-trip0],[data-app],[data-back2],[data-mode],[data-dcard],[data-dback]'); if(!t) return;
+  const d=t.dataset;
+  if(d.k) key(+d.k); else if(d.n) nav(d.n);
+  else{
+    if(d.m) S.mod=+d.m;
+    else if(d.clr) S.old=[];
+    else if(d.atab){S.atab=+d.atab;S.apg=0;S.det=null}
+    else if(d.dcard){const [k,dd]=d.dcard.split('|');S.det={k,d:dd};S.dpg=0}
+    else if(d.dback) S.det=null;
+    else if(d.sp) S[d.sp]=lim(S[d.sp]+ +d.d,800,2400);
+    else if(d.tg){S[d.tg]=!S[d.tg]; if(d.tg==='night') S.wake=0} // liga o noturno e já apaga
+    else if(d.br) S.bright=lim(S.bright+ +d.br,10,100);
+    else if(d.go) openClk();
+    else if(d.st){S.field=+d.st;step(+d.st,+d.d)}
+    else if(d.f) S.field=+d.f;
+    else if(d.save) saveClk();
+    else if(d.cancel) S.page=3;
+    else if(d.man){S.mpg=0;S.manBack=3;S.page=7}
+    else if(d.app) openApp(+d.app);
+    else if(d.back2) S.page=9;
+    else if(d.mode){S.mode=d.mode;S.page=0}
+    else if(d.trip0){ if(S.tripArm){const t=now();S.trip={h0:S.hours,f0:S.e.cons,pump:0,since:`${pad2(t.getDate())}/${pad2(t.getMonth()+1)} ${pad2(t.getHours())}:${pad2(t.getMinutes())}`};S.tripArm=false}
+      else {S.tripArm=true;setTimeout(()=>{S.tripArm=false;if(S.page===8)render()},3000)} }
+    else if(d.back) S.page=S.manBack;
+    else if(d.msg){showMsg(+d.msg);return}
+    else if(d.dir) S.dir={D:'N',N:'R',R:'D'}[S.dir];
+    else if(d.sdir) S.dir=d.sdir;
+    else if(d.srange) S.range=+d.srange;
+    else if(d.stg) S[d.stg]=!S[d.stg];
+    else if(d.skey){key(+d.skey);return}
+    else if(d.sout){const [i,k,s]=d.sout.split('|').map(Number), m=MODS[i], t=now(); if(m.f[k]) delete m.f[k]; else m.f[k]=[s,pad2(t.getHours())+':'+pad2(t.getMinutes())]; S.mod=i; S.page=1}
+    else if(d.soff){const m=MODS[+d.soff]; m.on=!m.on; S.mod=+d.soff; S.page=1}
+    else if(d.sfuel){const v=+d.sfuel;S.T.fuel=v;S.fuel=v;$('r_fuel').value=v;$('o_fuel').textContent=v+' %';checkFuel()}
+    else if(d.sim){const sp=+d.sim,i=S.dm1.findIndex(c=>c.spn===sp);
+      if(i>=0) S.dm1.splice(i,1); else {S.dm1.push(S.ALL[sp]);S.fresh=sp;setTimeout(()=>{S.fresh=null},5000);S.page=0;showMsg(sp)}}
+    render();
+  }
+});
+// setas das barras: homem-morto (comando TRUE só enquanto pressionado)
+document.addEventListener('pointerdown',e=>{
+  const t=e.target.closest('[data-b]'); if(!t||asleep()) return; // tela apagada: o toque não move barra
+  e.preventDefault(); S.held={s:t.dataset.b,d:+t.dataset.d}; drawBars();
+});
+const release=()=>{if(!S.held)return;S.held=null;if(S.page===5)drawBars()};
+['pointerup','pointercancel','blur'].forEach(ev=>addEventListener(ev,release));
+document.addEventListener('keydown',e=>{
+  const m={ArrowUp:'u',ArrowDown:'d',ArrowLeft:'l',ArrowRight:'r'};
+  touch();
+  if(e.key>='1'&&e.key<='6') key(+e.key-1);
+  else if(m[e.key]){nav(m[e.key]);e.preventDefault()}
+  else if(e.key==='Enter'&&!e.target.closest('button')) nav('ok');
+});
+
+// simulação
+const j=(v,a,lo,hi)=>lim(v+(Math.random()-.5)*a,lo,hi);
+setInterval(()=>{
+  const tgt=S.pump?540+Math.round((Math.random()-.5)*16):0;
+  S.pumpRpm=Math.round(S.pumpRpm+(tgt-S.pumpRpm)*.35); if(!S.pump&&S.pumpRpm<5) S.pumpRpm=0;
+  $('prpm').textContent=S.pumpRpm;
+},250);
+setInterval(()=>{
+  const T=S.T, n=a=>(Math.random()-.5)*a;
+  S.rpm=T.rpm?Math.round(lim(T.rpm+n(30),0,2800)):0; S.torque=T.torque?Math.round(lim(T.torque+n(4),0,100)):0; S.cool=T.cool; S.fuel=T.fuel; S.bat=lim(T.bat+n(.1),10,15); S.hours+=1/3600; S.e.cons+=S.e.rate/3600; if(S.pump) S.trip.pump+=1/3600; S.e.rate=j(S.e.rate,.4,12,17); S.e.oilP=Math.round(j(S.e.oilP,8,380,440));
+  clock();
+  checkFuel();
+  if(S.page===0) drawHome(); else if(S.page===6) drawData(); else if(S.page===8) drawTrip(); else if(S.page===9) drawMenu();
+  applyBr();
+},1000);
+
+function fit(){const w=$('fit').clientWidth,s=Math.min(1,w/1100);$('dev').style.transform=`scale(${s})`;$('fit').style.height=630*s+'px'}
+addEventListener('resize',fit); fit(); render(); setTimeout(()=>showMsg(110),600);
+</script>
+
+</body></html>
