@@ -1,0 +1,25 @@
+cmake_minimum_required(VERSION 3.16)
+project(Tupan LANGUAGES CXX)
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
+qt_add_executable(tupan WIN32 main.cpp tupan.cpp)
+target_compile_features(tupan PRIVATE cxx_std_17)
+target_link_libraries(tupan PRIVATE Qt6::Widgets)
+if(MSVC)
+    target_compile_options(tupan PRIVATE /utf-8)
+endif()
+
+
+include(CTest)
+if(BUILD_TESTING)
+    find_package(Qt6 REQUIRED COMPONENTS Test)
+    qt_add_executable(simulator_test tests/simulator_test.cpp tupan.cpp)
+    target_compile_features(simulator_test PRIVATE cxx_std_17)
+    target_link_libraries(simulator_test PRIVATE Qt6::Widgets Qt6::Test)
+    if(MSVC)
+        target_compile_options(simulator_test PRIVATE /utf-8)
+    endif()
+    add_test(NAME simulator_can COMMAND simulator_test)
+    set_tests_properties(simulator_can PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_PLUGIN_PATH=$<TARGET_FILE_DIR:Qt6::QOffscreenIntegrationPlugin>/.."
+        TIMEOUT 30)
+endif()

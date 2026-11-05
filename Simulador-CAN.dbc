@@ -1,0 +1,52 @@
+VERSION "1.0"
+
+NS_ :
+    CM_
+    BA_DEF_
+    BA_DEF_DEF_
+    BA_
+    VAL_
+
+BS_:
+
+BU_: Simulador Painel
+
+BO_ 256 RotacaoMotor: 2 Simulador
+ SG_ Rotacao : 0|16@1+ (1,0) [0|2800] "rpm" Painel
+
+BO_ 257 TorqueMotor: 2 Simulador
+ SG_ Torque : 0|16@1+ (1,0) [0|100] "%" Painel
+
+BO_ 258 TemperaturaMotor: 2 Simulador
+ SG_ Temperatura : 0|16@1+ (1,0) [60|120] "degC" Painel
+
+BO_ 259 NivelCombustivel: 2 Simulador
+ SG_ Combustivel : 0|16@1+ (1,0) [0|100] "%" Painel
+
+BO_ 260 TensaoBateria: 2 Simulador
+ SG_ Bateria : 0|16@1+ (0.1,0) [9|16] "V" Painel
+
+BO_ 261 ComandosVeiculo: 2 Simulador
+ SG_ Marcha : 0|2@1+ (1,0) [0|2] "" Painel
+ SG_ Farol : 2|1@1+ (1,0) [0|1] "" Painel
+ SG_ PiscaAlerta : 3|1@1+ (1,0) [0|1] "" Painel
+ SG_ Freio : 4|1@1+ (1,0) [0|1] "" Painel
+ SG_ MotorLigado : 5|1@1+ (1,0) [0|1] "" Painel
+
+CM_ "CAN classico simulado. IDs padrao de 11 bits. Ciclos nominais em ms.";
+CM_ BO_ 261 "Enviado na inicializacao, reconexao e mudanca de comando. Bits 6 a 15 reservados, sempre zero.";
+
+BA_DEF_ BO_ "GenMsgCycleTime" INT 0 65535;
+BA_DEF_DEF_ "GenMsgCycleTime" 0;
+BA_ "GenMsgCycleTime" BO_ 256 500;
+BA_ "GenMsgCycleTime" BO_ 257 100;
+BA_ "GenMsgCycleTime" BO_ 258 200;
+BA_ "GenMsgCycleTime" BO_ 259 500;
+BA_ "GenMsgCycleTime" BO_ 260 100;
+BA_ "GenMsgCycleTime" BO_ 261 0;
+
+VAL_ 261 Marcha 0 "Frente" 1 "Neutro" 2 "Re";
+VAL_ 261 Farol 0 "Desligado" 1 "Ligado";
+VAL_ 261 PiscaAlerta 0 "Desligado" 1 "Ligado";
+VAL_ 261 Freio 0 "Inativo" 1 "Ativo";
+VAL_ 261 MotorLigado 0 "Desligado" 1 "Ligado";
