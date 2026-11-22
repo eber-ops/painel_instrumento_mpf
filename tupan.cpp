@@ -14,8 +14,12 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPushButton>
+#include <QProcess>
+#include <QPlainTextEdit>
+#include <QUdpSocket>
 #include <QSlider>
 #include <QScrollBar>
+#include <QSignalBlocker>
 #include <QTabWidget>
 #include <QTableWidget>
 #include <QTimer>
@@ -253,6 +257,20 @@ int runSimulator(int argc, char* argv[], void (*onReady)(QWidget&)) {
     auto* root = new QVBoxLayout(&window);
     auto* tabs = new QTabWidget;
     root->addWidget(tabs);
+    auto* engineBar = new QHBoxLayout;
+    auto* engineMode = new QComboBox;
+    engineMode->setObjectName("engineMode");
+    engineMode->addItems({"Trampoline (WSL1)", "Qt local"});
+    engineMode->setCurrentIndex(qEnvironmentVariable("PANEL_BACKEND") == "local" ? 1 : 0);
+    auto* engineStatus = new QLabel;
+    engineStatus->setObjectName("engineStatus");
+    engineStatus->setWordWrap(true);
+    auto* restartEngine = new QPushButton("Reconectar");
+    restartEngine->setObjectName("restartEngine");
+    engineBar->addWidget(engineMode);
+    engineBar->addWidget(engineStatus, 1);
+    engineBar->addWidget(restartEngine);
+    root->insertLayout(0, engineBar);
     auto* panel = new QWidget;
     tabs->addTab(panel, "Painel");
     auto* layout = new QVBoxLayout(panel);
@@ -298,6 +316,7 @@ int runSimulator(int argc, char* argv[], void (*onReady)(QWidget&)) {
     auto* hazard = new QCheckBox("Pisca-alerta");
     auto* brake = new QCheckBox("Freio");
     auto* disconnect = new QCheckBox("Interromper CAN");
+    disconnect->setObjectName("disconnectCan");
     auto* ignition = new QPushButton("Ligar motor");
     ignition->setObjectName("ignition");
     ignition->setCheckable(true);
@@ -339,7 +358,7 @@ int runSimulator(int argc, char* argv[], void (*onReady)(QWidget&)) {
     auto* views = new QTabWidget;
     monitorLayout->addWidget(views);
     auto* rx = new QTableWidget(0, 8);
-    rx->setHorizontalHeaderLabels({"CAN-ID", "Tipo", "DLC", "Dados (hex)",
+    rx->setHorizontalHeaderLabels({"Enviar / CAN-ID", "Tipo", "DLC", "Dados (hex)",
                                    "Ciclo (ms)", "Contagem", "Sinal", "Estado"});
     auto* frames = new QTableWidget(0, 6);
     frames->setHorizontalHeaderLabels({QStringLiteral("Tempo (ms)"), "ID", "DLC", "Dados (hex)", "Sinal", "Resultado"});
@@ -363,6 +382,41 @@ int runSimulator(int argc, char* argv[], void (*onReady)(QWidget&)) {
         quint64 count;
     };
     QHash<std::uint16_t, Reception> receptions;
+    std::array<bool, count + 1> transmitting;
+    transmitting.fill(true);
+    auto enabledMask = [&] {
+        unsigned mask = 0;
+        for (int i = 0; i <= count; ++i)
+            if (transmitting[i] && i != blockedSignal->currentData().toInt()) mask |= 1u << i;
+        return mask;
+    };
+    auto resetReception = [&] {
+        const QSignalBlocker blocker(rx);
+        receptions.clear();
+        rx->setRowCount(count + 1);
+        for (int i = 0; i <= count; ++i) {
+            const auto id = static_cast<std::uint16_t>(0x100 + i);
+            receptions.insert(id, {i, 0, 0});
+            const QStringList values{
+                "0x" + QString::number(id, 16).toUpper(), "STD", "2",
+                QStringLiteral("—"), QStringLiteral("—"), "0",
+                i < count ? QString::fromLatin1(signalSpecs[i].label) : "Marcha e comandos",
+                "Aguardando"
+            };
+            for (int col = 0; col < values.size(); ++col)
+                rx->setItem(i, col, new QTableWidgetItem(values[col]));
+            auto* enabled = rx->item(i, 0);
+            enabled->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsUserCheckable);
+            enabled->setData(Qt::UserRole, i);
+            enabled->setCheckState(transmitting[i] ? Qt::Checked : Qt::Unchecked);
+
+        }
+    };
+    QObject::connect(rx, &QTableWidget::itemChanged, &window, [&](QTableWidgetItem* item) {
+        if (item->column() == 0)
+            transmitting[item->data(Qt::UserRole).toInt()] = item->checkState() == Qt::Checked;
+    });
+
 
     constexpr int historyLimit = 600;
     quint64 totalFrames = 0, rejectedFrames = 0;
@@ -386,7 +440,7 @@ int runSimulator(int argc, char* argv[], void (*onReady)(QWidget&)) {
         if (follow) frames->scrollToBottom();
         if (!error.isEmpty()) {
             ++rejectedFrames;
-            return;
+            return false;
         }
         auto entry = receptions.find(frame.id);
         if (entry == receptions.end()) {
@@ -404,19 +458,173 @@ int runSimulator(int argc, char* argv[], void (*onReady)(QWidget&)) {
         rx->item(entry->row, 5)->setText(QString::number(++entry->count));
         entry->lastTime = now;
         ++totalFrames;
+        return true;
     };
 
     QElapsedTimer clock;
     clock.start();
     qint64 lastRx = 0;
     std::array<qint64, count> lastValid{};
+    std::array<qint64, count> nextSend{};
+    int lastCommands = -1;
+    auto* consolePage = new QWidget;
+    tabs->addTab(consolePage, "Console Trampoline");
+    auto* consoleLayout = new QVBoxLayout(consolePage);
+    consoleLayout->addWidget(new QLabel(
+        "Tráfego ao vivo entre o painel Windows e o Trampoline no Ubuntu WSL1"));
+    auto* console = new QPlainTextEdit;
+    console->setObjectName("trampolineConsole");
+    console->setReadOnly(true);
+    console->setMaximumBlockCount(1000);
+    console->setStyleSheet("QPlainTextEdit { background: #08110d; color: #a3e86d; "
+                          "font: 15px Consolas; border: 1px solid #27343d; padding: 10px; }");
+    consoleLayout->addWidget(console);
+    auto* clearConsole = new QPushButton("Limpar console");
+    consoleLayout->addWidget(clearConsole);
+    QObject::connect(clearConsole, &QPushButton::clicked, console, &QPlainTextEdit::clear);
+    auto logConsole = [&](const QString& message) {
+        const bool follow = console->verticalScrollBar()->value() == console->verticalScrollBar()->maximum();
+        const auto position = console->verticalScrollBar()->value();
+        console->appendPlainText(QString("[%1 s] %2").arg(clock.elapsed() / 1000.0, 0, 'f', 3).arg(message));
+        if (follow) console->verticalScrollBar()->setValue(console->verticalScrollBar()->maximum());
+        else console->verticalScrollBar()->setValue(position);
+    };
+    QProcess backend;
+    QUdpSocket commandSocket;
+    quint16 backendPort = 0;
+    QByteArray backendBuffer;
+    QString backendError;
+    QTimer inputTimer;
+    QByteArray lastLoggedState;
+    auto writeBackend = [&](const QByteArray& line) {
+        if (backend.state() == QProcess::Running && backendPort) {
+            const auto sent = commandSocket.writeDatagram(line, QHostAddress::LocalHost, backendPort);
+            if (sent < 0) {
+                logConsole("ERRO de envio: " + commandSocket.errorString());
+            } else if (!line.startsWith("STATE") || line != lastLoggedState) {
+                logConsole("Windows -> WSL  " + QString::fromLatin1(line.trimmed()));
+                if (line.startsWith("STATE")) lastLoggedState = line;
+            }
+        }
+    };
+    auto stopBackend = [&] {
+        inputTimer.stop();
+        if (backend.state() == QProcess::NotRunning) return;
+        writeBackend("QUIT\n");
+        backend.closeWriteChannel();
+        if (!backend.waitForFinished(2000)) {
+            backend.kill();
+            backend.waitForFinished(1000);
+        }
+    };
+    auto startBackend = [&] {
+        stopBackend();
+        backendPort = 0;
+        backendBuffer.clear();
+        backendError.clear();
+        lastLoggedState.clear();
+        resetReception();
+        lastValid.fill(-100000);
+        lastRx = -100000;
+        nextSend.fill(0);
+        lastCommands = -1;
+        if (engineMode->currentIndex() == 1) {
+            engineStatus->setText("Simulação com temporizador Qt");
+            return;
+        }
+        engineStatus->setText("Iniciando Trampoline...");
+        logConsole("Iniciando Ubuntu WSL1 e Trampoline RTOS...");
+        QString linuxRoot = qEnvironmentVariable("TRAMPOLINE_ROOT", "/root/trampoline-test/source");
+        linuxRoot.replace("'", "'\"'\"'");
+        const QString shell = "cd '" + linuxRoot + "/examples/posix/panel' && "
+            "export VIPER_PATH='" + linuxRoot + "/viper' && exec ./panel_exe";
+        backend.start("wsl.exe", {"-d", "Ubuntu", "-u", "root", "--exec", "bash", "-lc", shell});
+    };
+    QObject::connect(&backend, &QProcess::readyReadStandardOutput, &window, [&] {
+        backendBuffer += backend.readAllStandardOutput();
+        while (backendBuffer.contains('\n')) {
+            const int end = backendBuffer.indexOf('\n');
+            const auto line = backendBuffer.left(end).trimmed().split(' ');
+            backendBuffer.remove(0, end + 1);
+            if (line.size() == 6 && line[0] == "CAN") {
+                bool valid = true;
+                unsigned values[5]{};
+                for (int i = 0; i < 5; ++i) {
+                    bool ok;
+                    values[i] = line[i + 1].toUInt(&ok);
+                    valid &= ok;
+                }
+                if (!valid || values[1] > 0x7ff || values[2] > 8 ||
+                    values[3] > 255 || values[4] > 255) continue;
+                Frame frame{static_cast<std::uint16_t>(values[1]),
+                            static_cast<std::uint8_t>(values[2]),
+                            {static_cast<std::uint8_t>(values[3]), static_cast<std::uint8_t>(values[4])}};
+                const auto now = clock.elapsed();
+                QString name = "Marcha e comandos";
+                int signalIndex = -1;
+                for (int i = 0; i < count; ++i)
+                    if (frame.id == signalSpecs[i].id) { name = signalSpecs[i].label; signalIndex = i; }
+                if (frame.id != 0x105 && signalIndex < 0) name = "ID desconhecido";
+                if (send(frame, now, name)) {
+                    lastRx = now;
+                    if (signalIndex >= 0) lastValid[signalIndex] = now;
+                }
+            } else if (!line.isEmpty() && line[0] == "TX") {
+                logConsole("Trampoline  " + QString::fromLatin1(line.join(' ')));
+            } else if (line.size() == 9 && line[0] == "TASKS") {
+                logConsole(QString("Trampoline  t=%1 ms  RX=%2  Aquisição=%3  Processamento=%4  Display=%5  Diagnóstico=%6  Log=%7")
+                    .arg(QString(line[1]), QString(line[2]), QString(line[3]), QString(line[4]),
+                         QString(line[5]), QString(line[6]), QString(line[7])));
+                engineStatus->setText(QString("Trampoline ativo  RX %1  Aquisição %2  Processamento %3  Display %4  Diagnóstico %5  Log %6")
+                    .arg(QString(line[2]), QString(line[3]), QString(line[4]),
+                         QString(line[5]), QString(line[6]), QString(line[7])));
+            } else if (line.size() == 3 && line[0] == "READY") {
+                backendPort = line[2].toUShort();
+                logConsole("Trampoline pronto. Canal local de comandos conectado.");
+                engineStatus->setText("Trampoline conectado. Aguardando tarefas...");
+            }
+        }
+        if (backendBuffer.size() > 65536) backendBuffer.clear();
+    });
+    QObject::connect(&backend, &QProcess::readyReadStandardError, &window, [&] {
+        backendError = QString::fromLocal8Bit(backend.readAllStandardError()).trimmed().right(1000);
+        if (!backendError.isEmpty()) logConsole("WSL  " + backendError);
+    });
+    QObject::connect(&backend, &QProcess::errorOccurred, &window, [&](QProcess::ProcessError) {
+        engineStatus->setText("Falha ao iniciar Trampoline: " + backend.errorString());
+    });
+    QObject::connect(&backend, &QProcess::finished, &window, [&](int code, QProcess::ExitStatus) {
+        inputTimer.stop();
+        logConsole(QString("Processo Trampoline encerrado. Código %1").arg(code));
+        if (engineMode->currentIndex() == 0)
+            engineStatus->setText(QString("Trampoline encerrado (%1). %2").arg(code).arg(backendError));
+    });
+    QObject::connect(&inputTimer, &QTimer::timeout, &window, [&] {
+        QByteArray state = "STATE";
+        for (auto* slider : sliders) state += ' ' + QByteArray::number(slider->value());
+        const unsigned commands = unsigned(direction->currentIndex()) | (lights->isChecked() ? 4u : 0u)
+            | (hazard->isChecked() ? 8u : 0u) | (brake->isChecked() ? 16u : 0u)
+            | (ignition->isChecked() ? 32u : 0u);
+        state += ' ' + QByteArray::number(commands) + ' ' + QByteArray::number(disconnect->isChecked())
+               + ' ' + QByteArray::number(enabledMask()) + '\n';
+        writeBackend(state);
+    });
+    QObject::connect(&backend, &QProcess::started, &window, [&] { inputTimer.start(20); });
+    QObject::connect(engineMode, &QComboBox::currentIndexChanged, &window, [&](int) { startBackend(); });
+    QObject::connect(restartEngine, &QPushButton::clicked, &window, startBackend);
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, &window, stopBackend);
     QObject::connect(inject, &QPushButton::clicked, &window, [&] {
         const int index = std::max(0, blockedSignal->currentData().toInt());
         const auto& spec = signalSpecs[index];
         auto frame = encode(spec.id, unsigned(spec.max + 1));
         if (fault->currentIndex() == 0) frame.dlc = 1;
         if (fault->currentIndex() == 1) frame.id = 0x7FF;
-        send(frame, clock.elapsed(), QStringLiteral("Injeção manual"));
+        if (engineMode->currentIndex() == 0) {
+            writeBackend("INJECT " + QByteArray::number(frame.id) + ' ' + QByteArray::number(frame.dlc)
+                         + ' ' + QByteArray::number(frame.data[0] | (unsigned(frame.data[1]) << 8)) + '\n');
+        } else {
+            send(frame, clock.elapsed(), QStringLiteral("Injeção manual"));
+        }
         views->setCurrentWidget(frames);
         frames->scrollToBottom();
     });
@@ -445,17 +653,15 @@ int runSimulator(int argc, char* argv[], void (*onReady)(QWidget&)) {
         if (!saved) QMessageBox::warning(&window, QStringLiteral("Exportar Trace"),
                                          QStringLiteral("Não foi possível salvar o arquivo CSV."));
     });
-    std::array<qint64, count> nextSend{};
-    int lastCommands = -1;
     qint64 engineStartedAt = 0;
     QObject::connect(ignition, &QPushButton::toggled, &window, [&](bool running) {
         if (running) engineStartedAt = clock.elapsed();
     });
     auto tick = [&] {
         const auto now = clock.elapsed();
-        if (!disconnect->isChecked()) {
+        if (engineMode->currentIndex() == 1 && !disconnect->isChecked()) {
             for (int i = 0; i < count; ++i) {
-                if (i == blockedSignal->currentData().toInt() || now < nextSend[i]) continue;
+                if (!(enabledMask() & (1u << i)) || now < nextSend[i]) continue;
                 const auto& spec = signalSpecs[i];
                 int value = sliders[i]->value();
                 if (i < 2) {
@@ -475,7 +681,8 @@ int runSimulator(int argc, char* argv[], void (*onReady)(QWidget&)) {
             const int commands = direction->currentIndex() | (lights->isChecked() ? 4 : 0)
                                | (hazard->isChecked() ? 8 : 0) | (brake->isChecked() ? 16 : 0)
                                | (ignition->isChecked() ? 32 : 0);
-            if (commands != lastCommands) {
+            if (!(enabledMask() & (1u << count))) lastCommands = -1;
+            if ((enabledMask() & (1u << count)) && commands != lastCommands) {
                 send(encode(0x105, unsigned(commands)), now, "Marcha e comandos");
                 lastCommands = commands;
                 lastRx = now;
@@ -502,6 +709,7 @@ int runSimulator(int argc, char* argv[], void (*onReady)(QWidget&)) {
     };
     QTimer timer;
     QObject::connect(&timer, &QTimer::timeout, &window, tick);
+    startBackend();
     tick();
     timer.setTimerType(Qt::PreciseTimer);
     timer.start(10);

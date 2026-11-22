@@ -1,2 +1,5 @@
 *.pdf binary
 *.pptx binary
+trampoline/*.sh text eol=lf
+trampoline/*.c text eol=lf
+trampoline/*.oil text eol=lf

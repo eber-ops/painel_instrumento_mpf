@@ -2,4 +2,5 @@
 /aqtinstall.log
 /CMakeUserPresets.json
 /.vs/
-/docs
+/nao-entregar/
+/output/video/

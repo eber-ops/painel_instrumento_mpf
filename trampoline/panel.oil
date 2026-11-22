@@ -1,0 +1,71 @@
+OIL_VERSION = "2.5";
+IMPLEMENTATION trampoline {
+  TASK { UINT32 STACKSIZE = 32768; };
+  ISR { UINT32 STACKSIZE = 32768; };
+};
+CPU panel {
+  OS config {
+    STATUS = EXTENDED;
+    BUILD = TRUE {
+      APP_SRC = "panel.c";
+      TRAMPOLINE_BASE_PATH = "../../..";
+      CFLAGS = "-g";
+      LDFLAGS = "-lm";
+      APP_NAME = "panel_exe";
+      LINKER = "gcc";
+      SYSTEM = PYTHON;
+    };
+  };
+  APPMODE stdAppmode {};
+  EVENT CanReady { MASK = AUTO; };
+  RESOURCE VehicleResource { RESOURCEPROPERTY = STANDARD; };
+
+  TASK Task_CAN_RX {
+    PRIORITY = 6; AUTOSTART = TRUE { APPMODE = stdAppmode; };
+    ACTIVATION = 1; SCHEDULE = FULL; EVENT = CanReady;
+  };
+  TASK Task_Acquisition {
+    PRIORITY = 5; AUTOSTART = FALSE; ACTIVATION = 1; SCHEDULE = FULL;
+    RESOURCE = VehicleResource;
+  };
+  TASK Task_Processing {
+    PRIORITY = 4; AUTOSTART = FALSE; ACTIVATION = 1; SCHEDULE = FULL;
+    RESOURCE = VehicleResource;
+  };
+  TASK Task_Display {
+    PRIORITY = 3; AUTOSTART = FALSE; ACTIVATION = 1; SCHEDULE = FULL;
+    RESOURCE = VehicleResource;
+  };
+  TASK Task_Diagnostics {
+    PRIORITY = 2; AUTOSTART = FALSE; ACTIVATION = 1; SCHEDULE = FULL;
+    RESOURCE = VehicleResource;
+  };
+  TASK Task_Logging {
+    PRIORITY = 1; AUTOSTART = FALSE; ACTIVATION = 1; SCHEDULE = FULL;
+  };
+  ALARM AcquisitionAlarm {
+    COUNTER = SystemCounter;
+    ACTION = ACTIVATETASK { TASK = Task_Acquisition; };
+    AUTOSTART = TRUE { APPMODE = stdAppmode; ALARMTIME = 1; CYCLETIME = 1; };
+  };
+  ALARM ProcessingAlarm {
+    COUNTER = SystemCounter;
+    ACTION = ACTIVATETASK { TASK = Task_Processing; };
+    AUTOSTART = TRUE { APPMODE = stdAppmode; ALARMTIME = 2; CYCLETIME = 2; };
+  };
+  ALARM DisplayAlarm {
+    COUNTER = SystemCounter;
+    ACTION = ACTIVATETASK { TASK = Task_Display; };
+    AUTOSTART = TRUE { APPMODE = stdAppmode; ALARMTIME = 5; CYCLETIME = 5; };
+  };
+  ALARM DiagnosticsAlarm {
+    COUNTER = SystemCounter;
+    ACTION = ACTIVATETASK { TASK = Task_Diagnostics; };
+    AUTOSTART = TRUE { APPMODE = stdAppmode; ALARMTIME = 10; CYCLETIME = 10; };
+  };
+  ALARM LoggingAlarm {
+    COUNTER = SystemCounter;
+    ACTION = ACTIVATETASK { TASK = Task_Logging; };
+    AUTOSTART = TRUE { APPMODE = stdAppmode; ALARMTIME = 100; CYCLETIME = 100; };
+  };
+};

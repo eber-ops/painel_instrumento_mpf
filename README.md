@@ -1,4 +1,4 @@
-# Simulador CAN
+﻿# Simulador CAN
 
 Aplicativo C++17 com uma única tela em Qt 6 Widgets, inspirada no painel inicial
 do Tupan. Os mostradores são desenhados com QPainter e acompanham o tamanho
@@ -91,3 +91,10 @@ Qt offscreen. Ele verifica partida e desligamento, intervalo de recepção do
 RPM, rejeição de DLC inválido, ID desconhecido e valor fora da faixa, além
 de perda e recuperação do RPM com o torque ainda ativo. Configure com
 `-DBUILD_TESTING=OFF` para compilar apenas o aplicativo.
+
+### Trampoline RTOS conectado
+
+A integração real com Trampoline e Ubuntu WSL1 está documentada em
+[trampoline/README.md](trampoline/README.md). O seletor no topo da janela
+permite escolher **Trampoline (WSL1)** ou **Qt local**. A cópia já compilada
+deste computador está em **nao-entregar/build-trampoline-qt/tupan.exe**.
